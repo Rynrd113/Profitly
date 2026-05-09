@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChefHat } from 'lucide-react';
 import { ModeSelectorCards, type CalcMode } from '@/components/ModeSelectorCards';
 import { HPPCalculator } from '@/components/HPPCalculator';
@@ -8,12 +8,32 @@ import { TurunanCalculator } from '@/components/TurunanCalculator';
 import { useDerivedIngredients } from '@/hooks/useDerivedIngredients';
 import { useSavedRawIngredients } from '@/hooks/useSavedRawIngredients';
 import { useSavedRecipes } from '@/hooks/useSavedRecipes';
+import { RecipeHistory } from '@/components/RecipeHistory';
+import type { SavedRecipe } from '@/types/hpp';
 
 export default function CalculatorPage() {
   const [activeMode, setActiveMode] = useState<CalcMode>('satuan');
   const { ingredients: derivedIngredients, save, remove } = useDerivedIngredients();
-  const { ingredients: savedRawIngredients, save: saveRaw, remove: removeRaw } = useSavedRawIngredients();
-  const { save: saveRecipe } = useSavedRecipes();
+  const {
+    ingredients: savedRawIngredients,
+    save: saveRawIngredients,
+    remove: removeRawIngredient,
+  } = useSavedRawIngredients();
+  const { recipes: savedRecipes, save: saveRecipe, remove: removeRecipe } = useSavedRecipes();
+  const [recipeToLoad, setRecipeToLoad] = useState<SavedRecipe | null>(null);
+
+  useEffect(() => {
+    if (recipeToLoad) setRecipeToLoad(null);
+  }, [recipeToLoad]);
+
+  const handleSaveRecipe = (data: Omit<SavedRecipe, 'id' | 'savedAt'>) => {
+    saveRecipe(data);
+  };
+
+  const handleLoadRecipe = (recipe: SavedRecipe) => {
+    setActiveMode(recipe.mode);
+    setRecipeToLoad(recipe);
+  };
 
   return (
     <div
@@ -48,10 +68,10 @@ export default function CalculatorPage() {
             mode={activeMode === 'batch' ? 'batch' : 'satuan'}
             derivedIngredients={derivedIngredients}
             savedRawIngredients={savedRawIngredients}
-            onSaveRawIngredients={saveRaw}
-            onRemoveRawIngredient={removeRaw}
-            onSaveRecipe={saveRecipe}
-            recipeToLoad={null}
+            onSaveRawIngredients={saveRawIngredients}
+            onRemoveRawIngredient={removeRawIngredient}
+            onSaveRecipe={handleSaveRecipe}
+            recipeToLoad={recipeToLoad}
           />
         </div>
         <div className={activeMode !== 'turunan' ? 'hidden' : ''}>
@@ -60,10 +80,15 @@ export default function CalculatorPage() {
             onSave={save}
             onRemove={remove}
             savedRawIngredients={savedRawIngredients}
-            onSaveRawIngredients={saveRaw}
-            onRemoveRawIngredient={removeRaw}
+            onSaveRawIngredients={saveRawIngredients}
+            onRemoveRawIngredient={removeRawIngredient}
           />
         </div>
+        <RecipeHistory
+          recipes={savedRecipes}
+          onLoad={handleLoadRecipe}
+          onRemove={removeRecipe}
+        />
       </main>
     </div>
   );
