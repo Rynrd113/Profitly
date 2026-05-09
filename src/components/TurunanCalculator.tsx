@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Package, Zap, FlaskConical, Save, Trash2 } from 'lucide-react';
+import { Package, Zap, FlaskConical, Save, Trash2, BookmarkPlus } from 'lucide-react';
 import {
   TextInput, NumInput, DeleteBtn, AddRowBtn, SectionHeader,
 } from '@/components/CalculatorShared';
+import { IngredientNameInput } from '@/components/IngredientNameInput';
 import { calculateDerivedHPP } from '@/lib/engine';
 import { uid, parseNum, formatRp } from '@/lib/format';
-import type { Ingredient, ProcessingCost, DerivedIngredient } from '@/types/hpp';
+import type { Ingredient, ProcessingCost, DerivedIngredient, SavedRawIngredient } from '@/types/hpp';
 
 interface TurunanIngredientRow {
   id: string; name: string;
@@ -41,10 +42,16 @@ export function TurunanCalculator({
   derivedIngredients,
   onSave,
   onRemove,
+  savedRawIngredients,
+  onSaveRawIngredients,
+  onRemoveRawIngredient,
 }: {
   derivedIngredients: DerivedIngredient[];
   onSave: (items: DerivedIngredient[]) => void;
   onRemove: (id: string) => void;
+  savedRawIngredients: SavedRawIngredient[];
+  onSaveRawIngredients: (items: SavedRawIngredient[]) => void;
+  onRemoveRawIngredient: (name: string) => void;
 }) {
   const [processName, setProcessName] = useState('');
   const [inputs, setInputs] = useState<TurunanIngredientRow[]>([emptyIngredient()]);
@@ -113,6 +120,28 @@ export function TurunanCalculator({
     onSave(items);
   };
 
+  const handleSelectSaved = (id: string, item: SavedRawIngredient) => {
+    setInputs(prev => prev.map(r => r.id === id ? {
+      ...r,
+      name: item.name,
+      purchasePrice: String(item.purchasePrice),
+      purchaseVolume: String(item.purchaseVolume),
+      unit: item.unit,
+    } : r));
+  };
+
+  const handleSaveToKatalog = () => {
+    const items: SavedRawIngredient[] = inputs
+      .filter(r => r.name.trim() && parseNum(r.purchasePrice) > 0 && parseNum(r.purchaseVolume) > 0)
+      .map(r => ({
+        name: r.name.trim(),
+        purchasePrice: parseNum(r.purchasePrice),
+        purchaseVolume: parseNum(r.purchaseVolume),
+        unit: r.unit,
+      }));
+    if (items.length > 0) onSaveRawIngredients(items);
+  };
+
   return (
     <div className="lg:grid lg:grid-cols-[1fr_300px] lg:gap-8 lg:items-start">
       <div className="space-y-5">
@@ -143,8 +172,14 @@ export function TurunanCalculator({
               <div key={row.id}>
                 <div className="md:hidden bg-[#F8F7F2] rounded-xl p-3 space-y-2">
                   <div className="flex gap-2">
-                    <TextInput value={row.name} onChange={v => updateInput(row.id, 'name', v)}
-                      placeholder="Nama bahan" className="flex-1" />
+                    <IngredientNameInput
+                      value={row.name}
+                      onChange={v => updateInput(row.id, 'name', v)}
+                      onSelect={item => handleSelectSaved(row.id, item)}
+                      suggestions={savedRawIngredients}
+                      placeholder="Nama bahan"
+                      className="flex-1"
+                    />
                     <DeleteBtn onClick={() => setInputs(prev => prev.filter(r => r.id !== row.id))} />
                   </div>
                   <div className="grid grid-cols-3 gap-2">
@@ -184,7 +219,13 @@ export function TurunanCalculator({
                 </div>
                 <div className="hidden md:grid gap-2 items-center"
                   style={{ gridTemplateColumns: '1fr 104px 76px 72px 76px 60px 36px' }}>
-                  <TextInput value={row.name} onChange={v => updateInput(row.id, 'name', v)} placeholder="Nama bahan" />
+                  <IngredientNameInput
+                    value={row.name}
+                    onChange={v => updateInput(row.id, 'name', v)}
+                    onSelect={item => handleSelectSaved(row.id, item)}
+                    suggestions={savedRawIngredients}
+                    placeholder="Nama bahan"
+                  />
                   <NumInput value={row.purchasePrice} onChange={v => updateInput(row.id, 'purchasePrice', v)}
                     placeholder="14000" prefix="Rp" />
                   <NumInput value={row.purchaseVolume} onChange={v => updateInput(row.id, 'purchaseVolume', v)}
@@ -205,7 +246,18 @@ export function TurunanCalculator({
               </div>
             ))}
           </div>
-          <AddRowBtn onClick={() => setInputs(prev => [...prev, emptyIngredient()])} label="Tambah Bahan" />
+          <div className="flex items-center gap-3 flex-wrap">
+            <AddRowBtn onClick={() => setInputs(prev => [...prev, emptyIngredient()])} label="Tambah Bahan" />
+            <button
+              type="button"
+              onClick={handleSaveToKatalog}
+              className="flex items-center gap-1.5 text-sm font-medium text-[#78716C]
+                hover:text-[#1A6B3C] transition-colors"
+            >
+              <BookmarkPlus size={14} />
+              Simpan ke Katalog
+            </button>
+          </div>
         </section>
 
         {/* Biaya Pengolahan */}
@@ -377,6 +429,31 @@ export function TurunanCalculator({
                   </div>
                   <button type="button" onClick={() => onRemove(di.id)}
                     className="text-[#C4BFBA] hover:text-red-400 transition-colors ml-2">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {savedRawIngredients.length > 0 && (
+          <div className="bg-white rounded-2xl border border-[#E5E3DD] p-5 shadow-sm">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#C4BFBA] block mb-3">
+              Katalog Bahan
+            </span>
+            <div className="space-y-1">
+              {savedRawIngredients.map(item => (
+                <div key={item.name} className="flex items-center justify-between py-1.5
+                  border-b border-[#F0EDE8] last:border-0">
+                  <div>
+                    <p className="text-sm font-medium text-[#1A1A18]">{item.name}</p>
+                    <p className="text-[11px] text-[#78716C]">
+                      {formatRp(item.purchasePrice)} · {item.purchaseVolume.toLocaleString('id-ID')} {item.unit}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => onRemoveRawIngredient(item.name)}
+                    className="text-[#C4BFBA] hover:text-red-400 transition-colors ml-2 shrink-0">
                     <Trash2 size={13} />
                   </button>
                 </div>

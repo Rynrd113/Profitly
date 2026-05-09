@@ -55,6 +55,9 @@ export default function CalculatorPage() {
             derivedIngredients={derivedIngredients}
             onSave={save}
             onRemove={remove}
+            savedRawIngredients={savedRawIngredients}
+            onSaveRawIngredients={saveRaw}
+            onRemoveRawIngredient={removeRaw}
           />
         </div>
       </main>
