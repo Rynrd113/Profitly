@@ -7,11 +7,13 @@ import { HPPCalculator } from '@/components/HPPCalculator';
 import { TurunanCalculator } from '@/components/TurunanCalculator';
 import { useDerivedIngredients } from '@/hooks/useDerivedIngredients';
 import { useSavedRawIngredients } from '@/hooks/useSavedRawIngredients';
+import { useSavedRecipes } from '@/hooks/useSavedRecipes';
 
 export default function CalculatorPage() {
   const [activeMode, setActiveMode] = useState<CalcMode>('satuan');
   const { ingredients: derivedIngredients, save, remove } = useDerivedIngredients();
   const { ingredients: savedRawIngredients, save: saveRaw, remove: removeRaw } = useSavedRawIngredients();
+  const { save: saveRecipe } = useSavedRecipes();
 
   return (
     <div
@@ -48,6 +50,8 @@ export default function CalculatorPage() {
             savedRawIngredients={savedRawIngredients}
             onSaveRawIngredients={saveRaw}
             onRemoveRawIngredient={removeRaw}
+            onSaveRecipe={saveRecipe}
+            recipeToLoad={null}
           />
         </div>
         <div className={activeMode !== 'turunan' ? 'hidden' : ''}>

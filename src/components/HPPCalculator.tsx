@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Package, Zap, SlidersHorizontal, ChevronDown, Trash2, BookmarkPlus } from 'lucide-react';
+import { Package, Zap, SlidersHorizontal, ChevronDown, Trash2, BookmarkPlus, History } from 'lucide-react';
 import {
   TextInput, NumInput, DeleteBtn, AddRowBtn, SectionHeader,
 } from '@/components/CalculatorShared';
@@ -9,7 +9,7 @@ import { ResultsPanel } from '@/components/ResultsPanel';
 import { IngredientNameInput } from '@/components/IngredientNameInput';
 import { calculateTotalHPP, getPricingTiers, calculateBEP } from '@/lib/engine';
 import { uid, parseNum, formatRp } from '@/lib/format';
-import type { Ingredient, OperationalCost, DerivedIngredient, SavedRawIngredient } from '@/types/hpp';
+import type { Ingredient, OperationalCost, DerivedIngredient, SavedRawIngredient, SavedRecipeIngredient, SavedRecipeOp, SavedRecipe } from '@/types/hpp';
 import type { CalcMode } from '@/components/ModeSelectorCards';
 
 interface IngredientRow {
@@ -38,12 +38,16 @@ export function HPPCalculator({
   savedRawIngredients,
   onSaveRawIngredients,
   onRemoveRawIngredient,
+  onSaveRecipe,
+  recipeToLoad,
 }: {
   mode: Exclude<CalcMode, 'turunan'>;
   derivedIngredients: DerivedIngredient[];
   savedRawIngredients: SavedRawIngredient[];
   onSaveRawIngredients: (items: SavedRawIngredient[]) => void;
   onRemoveRawIngredient: (name: string) => void;
+  onSaveRecipe: (data: Omit<SavedRecipe, 'id' | 'savedAt'>) => void;
+  recipeToLoad: SavedRecipe | null;
 }) {
   const [ingredients, setIngredients] = useState<IngredientRow[]>([emptyIngredient()]);
   const [ops, setOps] = useState<OperationalRow[]>([emptyOp()]);
@@ -51,6 +55,9 @@ export function HPPCalculator({
   const [fixedCost, setFixedCost] = useState('5000000');
   const [showDerivedPicker, setShowDerivedPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const [showSaveForm, setShowSaveForm] = useState(false);
+  const [savedName, setSavedName] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
     if (!showDerivedPicker) return;
@@ -62,6 +69,14 @@ export function HPPCalculator({
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showDerivedPicker]);
+
+  useEffect(() => {
+    if (!recipeToLoad) return;
+    setIngredients(recipeToLoad.ingredients);
+    setOps(recipeToLoad.ops);
+    setBatchSize(recipeToLoad.batchSize);
+    setFixedCost(recipeToLoad.fixedCost);
+  }, [recipeToLoad]);
 
   const updateIng = (id: string, field: keyof IngredientRow, val: string) =>
     setIngredients(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
@@ -102,6 +117,28 @@ export function HPPCalculator({
         unit: r.unit,
       }));
     if (items.length > 0) onSaveRawIngredients(items);
+  };
+
+  const handleClickSave = () => {
+    const defaultName = ingredients.find(r => r.name.trim())?.name ?? 'Resep baru';
+    setSavedName(defaultName);
+    setShowSaveForm(true);
+  };
+
+  const handleConfirmSave = () => {
+    if (!result) return;
+    onSaveRecipe({
+      name: savedName.trim() || 'Resep baru',
+      mode,
+      ingredients: ingredients as SavedRecipeIngredient[],
+      ops: ops as SavedRecipeOp[],
+      batchSize,
+      fixedCost,
+      hpp: result.hpp,
+    });
+    setShowSaveForm(false);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 1500);
   };
 
   const updateOp = (id: string, field: keyof OperationalRow, val: string) =>
@@ -383,6 +420,50 @@ export function HPPCalculator({
             </div>
           </div>
         </section>
+
+        {result !== null && (
+          <div className="flex items-center gap-3">
+            {!showSaveForm && !saveSuccess && (
+              <button
+                type="button"
+                onClick={handleClickSave}
+                className="flex items-center gap-1.5 text-sm font-medium text-[#78716C]
+                  hover:text-[#1A6B3C] transition-colors"
+              >
+                <History size={14} />
+                Simpan ke Riwayat
+              </button>
+            )}
+            {saveSuccess && (
+              <span className="text-sm font-medium text-[#1A6B3C]">✓ Tersimpan</span>
+            )}
+            {showSaveForm && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={savedName}
+                  onChange={e => setSavedName(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleConfirmSave();
+                    if (e.key === 'Escape') setShowSaveForm(false);
+                  }}
+                  placeholder="Nama resep..."
+                  autoFocus
+                  className="bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl px-3 py-1.5 text-sm
+                    focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C] w-48"
+                />
+                <button
+                  type="button"
+                  onClick={handleConfirmSave}
+                  className="px-3 py-1.5 bg-[#1A6B3C] text-white text-sm font-medium
+                    rounded-xl hover:bg-[#15593A] transition-colors"
+                >
+                  Simpan
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-5 lg:mt-0 space-y-4">
