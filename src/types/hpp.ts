@@ -49,3 +49,10 @@ export interface DerivedProductOutput {
   sellPrice: number;
   hpp: number;
 }
+
+export interface SavedRawIngredient {
+  name: string;           // primary key — upsert by name
+  purchasePrice: number;
+  purchaseVolume: number;
+  unit: 'gr' | 'ml' | 'pcs';
+}
