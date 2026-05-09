@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Package, Zap, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { Package, Zap, SlidersHorizontal, ChevronDown, Trash2, BookmarkPlus } from 'lucide-react';
 import {
   TextInput, NumInput, DeleteBtn, AddRowBtn, SectionHeader,
 } from '@/components/CalculatorShared';
 import { ResultsPanel } from '@/components/ResultsPanel';
+import { IngredientNameInput } from '@/components/IngredientNameInput';
 import { calculateTotalHPP, getPricingTiers, calculateBEP } from '@/lib/engine';
-import { uid, parseNum } from '@/lib/format';
-import type { Ingredient, OperationalCost, DerivedIngredient } from '@/types/hpp';
+import { uid, parseNum, formatRp } from '@/lib/format';
+import type { Ingredient, OperationalCost, DerivedIngredient, SavedRawIngredient } from '@/types/hpp';
 import type { CalcMode } from '@/components/ModeSelectorCards';
 
 interface IngredientRow {
@@ -34,9 +35,15 @@ const emptyOp = (): OperationalRow => ({
 export function HPPCalculator({
   mode,
   derivedIngredients,
+  savedRawIngredients,
+  onSaveRawIngredients,
+  onRemoveRawIngredient,
 }: {
   mode: Exclude<CalcMode, 'turunan'>;
   derivedIngredients: DerivedIngredient[];
+  savedRawIngredients: SavedRawIngredient[];
+  onSaveRawIngredients: (items: SavedRawIngredient[]) => void;
+  onRemoveRawIngredient: (name: string) => void;
 }) {
   const [ingredients, setIngredients] = useState<IngredientRow[]>([emptyIngredient()]);
   const [ops, setOps] = useState<OperationalRow[]>([emptyOp()]);
@@ -73,6 +80,28 @@ export function HPPCalculator({
       isDerived: true,
     }]);
     setShowDerivedPicker(false);
+  };
+
+  const handleSelectSaved = (id: string, item: SavedRawIngredient) => {
+    setIngredients(prev => prev.map(r => r.id === id ? {
+      ...r,
+      name: item.name,
+      purchasePrice: String(item.purchasePrice),
+      purchaseVolume: String(item.purchaseVolume),
+      unit: item.unit,
+    } : r));
+  };
+
+  const handleSaveToKatalog = () => {
+    const items: SavedRawIngredient[] = ingredients
+      .filter(r => r.name.trim() && parseNum(r.purchasePrice) > 0 && parseNum(r.purchaseVolume) > 0)
+      .map(r => ({
+        name: r.name.trim(),
+        purchasePrice: parseNum(r.purchasePrice),
+        purchaseVolume: parseNum(r.purchaseVolume),
+        unit: r.unit,
+      }));
+    if (items.length > 0) onSaveRawIngredients(items);
   };
 
   const updateOp = (id: string, field: keyof OperationalRow, val: string) =>
@@ -139,8 +168,14 @@ export function HPPCalculator({
                 <div className="md:hidden bg-[#F8F7F2] rounded-xl p-3 space-y-2">
                   <div className="flex items-center gap-2">
                     <div className="flex-1 flex items-center gap-1.5">
-                      <TextInput value={row.name} onChange={v => updateIng(row.id, 'name', v)}
-                        placeholder="Nama bahan" className="flex-1" />
+                      <IngredientNameInput
+                        value={row.name}
+                        onChange={v => updateIng(row.id, 'name', v)}
+                        onSelect={item => handleSelectSaved(row.id, item)}
+                        suggestions={savedRawIngredients}
+                        placeholder="Nama bahan"
+                        className="flex-1"
+                      />
                       {row.isDerived && (
                         <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full
                           bg-[#ECFDF5] text-[#1A6B3C] border border-[#A7F3D0]">Turunan</span>
@@ -187,8 +222,14 @@ export function HPPCalculator({
                 <div className="hidden md:grid gap-2 items-center"
                   style={{ gridTemplateColumns: '1fr 104px 76px 72px 76px 60px 36px' }}>
                   <div className="flex items-center gap-1.5">
-                    <TextInput value={row.name} onChange={v => updateIng(row.id, 'name', v)}
-                      placeholder="Nama bahan" className="flex-1" />
+                    <IngredientNameInput
+                      value={row.name}
+                      onChange={v => updateIng(row.id, 'name', v)}
+                      onSelect={item => handleSelectSaved(row.id, item)}
+                      suggestions={savedRawIngredients}
+                      placeholder="Nama bahan"
+                      className="flex-1"
+                    />
                     {row.isDerived && (
                       <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full
                         bg-[#ECFDF5] text-[#1A6B3C] border border-[#A7F3D0]">Turunan</span>
@@ -248,6 +289,15 @@ export function HPPCalculator({
                 )}
               </div>
             )}
+            <button
+              type="button"
+              onClick={handleSaveToKatalog}
+              className="flex items-center gap-1.5 text-sm font-medium text-[#78716C]
+                hover:text-[#1A6B3C] transition-colors"
+            >
+              <BookmarkPlus size={14} />
+              Simpan ke Katalog
+            </button>
           </div>
         </section>
 
@@ -335,7 +385,33 @@ export function HPPCalculator({
         </section>
       </div>
 
-      <ResultsPanel result={result} />
+      <div className="mt-5 lg:mt-0 space-y-4">
+        <ResultsPanel result={result} />
+        {savedRawIngredients.length > 0 && (
+          <div className="bg-white rounded-2xl border border-[#E5E3DD] p-5 shadow-sm">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#C4BFBA] block mb-3">
+              Katalog Bahan
+            </span>
+            <div className="space-y-1">
+              {savedRawIngredients.map(item => (
+                <div key={item.name} className="flex items-center justify-between py-1.5
+                  border-b border-[#F0EDE8] last:border-0">
+                  <div>
+                    <p className="text-sm font-medium text-[#1A1A18]">{item.name}</p>
+                    <p className="text-[11px] text-[#78716C]">
+                      {formatRp(item.purchasePrice)} · {item.purchaseVolume.toLocaleString('id-ID')} {item.unit}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => onRemoveRawIngredient(item.name)}
+                    className="text-[#C4BFBA] hover:text-red-400 transition-colors ml-2 shrink-0">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
