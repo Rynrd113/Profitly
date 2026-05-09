@@ -56,3 +56,33 @@ export interface SavedRawIngredient {
   purchaseVolume: number;
   unit: 'gr' | 'ml' | 'pcs';
 }
+
+export interface SavedRecipeIngredient {
+  id: string;
+  name: string;
+  purchasePrice: string;
+  purchaseVolume: string;
+  unit: 'gr' | 'ml' | 'pcs';
+  usage: string;
+  yieldFactor: string;
+  isDerived?: boolean;
+}
+
+export interface SavedRecipeOp {
+  id: string;
+  name: string;
+  price: string;
+  usage: string;
+}
+
+export interface SavedRecipe {
+  id: string;
+  name: string;
+  savedAt: string;                       // ISO date string
+  mode: 'satuan' | 'batch';
+  ingredients: SavedRecipeIngredient[];
+  ops: SavedRecipeOp[];
+  batchSize: string;
+  fixedCost: string;
+  hpp: number;
+}
