@@ -54,7 +54,12 @@ export function NumInput({
         type="number"
         min="0"
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => {
+          const raw = e.target.value;
+          if (raw === '' || raw === '-') { onChange(raw); return; }
+          const n = parseFloat(raw);
+          onChange(!isNaN(n) && n < 0 ? '0' : raw);
+        }}
         placeholder={placeholder}
         inputMode="decimal"
         className={`w-full bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl text-sm text-right

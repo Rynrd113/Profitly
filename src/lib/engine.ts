@@ -1,4 +1,5 @@
 import type { Ingredient, OperationalCost, PricingTier, ProcessingCost, DerivedProductOutput } from '@/types/hpp';
+import { roundToThousand } from '@/lib/format';
 
 export interface PricingTiers {
   competitive: number; // Margin 20%
@@ -12,10 +13,6 @@ function round(value: number, decimals: number = 2): number {
   return Math.round(value * factor) / factor;
 }
 
-// Round up to nearest 500 for "pretty" sell prices
-function ceilTo500(value: number): number {
-  return Math.ceil(value / 500) * 500;
-}
 
 /**
  * Hitung biaya satu bahan baku untuk satu resep.
@@ -78,7 +75,7 @@ export function getPricingTiers(hpp: number): PricingTier[] {
   if (hpp <= 0) throw new RangeError('HPP harus lebih dari 0');
 
   return TIER_DEFINITIONS.map(({ label, margin }) => {
-    const sellPrice = ceilTo500(hpp / (1 - margin));
+    const sellPrice = roundToThousand(hpp / (1 - margin));
     return {
       label,
       margin,

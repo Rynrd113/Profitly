@@ -371,7 +371,7 @@ export function TurunanCalculator({
       </div>
 
       {/* Right panel */}
-      <div className="mt-5 lg:mt-0 lg:sticky lg:top-[73px] space-y-4">
+      <div className="mt-5 lg:mt-0 space-y-4">
         {/* Summary */}
         <div className="bg-white rounded-2xl border border-[#E5E3DD] p-5 shadow-sm">
           <span className="text-[10px] font-bold uppercase tracking-widest text-[#C4BFBA] block mb-3">

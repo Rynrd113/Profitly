@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Package, Zap, SlidersHorizontal, ChevronDown, Trash2, BookmarkPlus, History } from 'lucide-react';
+import { Package, Zap, SlidersHorizontal, ChevronDown, Trash2, BookmarkPlus, History, Loader2 } from 'lucide-react';
 import {
   TextInput, NumInput, DeleteBtn, AddRowBtn, SectionHeader,
 } from '@/components/CalculatorShared';
@@ -9,6 +9,7 @@ import { ResultsPanel } from '@/components/ResultsPanel';
 import { IngredientNameInput } from '@/components/IngredientNameInput';
 import { calculateTotalHPP, getPricingTiers, calculateBEP } from '@/lib/engine';
 import { uid, parseNum, formatRp } from '@/lib/format';
+import { toast } from 'sonner';
 import type { Ingredient, OperationalCost, DerivedIngredient, SavedRawIngredient, SavedRecipeIngredient, SavedRecipeOp, SavedRecipe } from '@/types/hpp';
 import type { CalcMode } from '@/components/ModeSelectorCards';
 
@@ -53,11 +54,13 @@ export function HPPCalculator({
   const [ops, setOps] = useState<OperationalRow[]>([emptyOp()]);
   const [batchSize, setBatchSize] = useState('50');
   const [fixedCost, setFixedCost] = useState('5000000');
+  const [targetUnits, setTargetUnits] = useState('100');
   const [showDerivedPicker, setShowDerivedPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [savedName, setSavedName] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!showDerivedPicker) return;
@@ -126,7 +129,16 @@ export function HPPCalculator({
   };
 
   const handleConfirmSave = () => {
-    if (!result) return;
+    if (!result || isSaving) return;
+    const invalid = ingredients.filter(r =>
+      r.name.trim() && (parseNum(r.purchasePrice) <= 0 || parseNum(r.purchaseVolume) <= 0)
+    );
+    if (invalid.length > 0) {
+      toast.error('Harga beli dan volume bahan harus lebih dari 0');
+      return;
+    }
+    setIsSaving(true);
+    setShowSaveForm(false);
     onSaveRecipe({
       name: savedName.trim() || 'Resep baru',
       mode,
@@ -136,9 +148,17 @@ export function HPPCalculator({
       fixedCost,
       hpp: result.hpp,
     });
-    setShowSaveForm(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 1500);
+    setTimeout(() => {
+      setIsSaving(false);
+      setSaveSuccess(true);
+      toast.success(`Resep "${savedName.trim() || 'Resep baru'}" berhasil disimpan`);
+      setTimeout(() => setSaveSuccess(false), 1500);
+      setIngredients([emptyIngredient()]);
+      setOps([emptyOp()]);
+      setBatchSize('50');
+      setFixedCost('5000000');
+      setTargetUnits('100');
+    }, 400);
   };
 
   const updateOp = (id: string, field: keyof OperationalRow, val: string) =>
@@ -394,7 +414,10 @@ export function HPPCalculator({
                 <label className="block text-sm font-medium text-[#1A1A18] mb-1.5">Jumlah Produksi</label>
                 <div className="relative flex items-center">
                   <input type="number" min="1" value={batchSize}
-                    onChange={e => setBatchSize(e.target.value)}
+                    onChange={e => {
+                      const n = parseFloat(e.target.value);
+                      setBatchSize(e.target.value === '' ? '' : isNaN(n) || n < 1 ? '1' : e.target.value);
+                    }}
                     className="w-full bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl
                       px-3 pr-14 py-2.5 text-sm text-right focus:outline-none
                       focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C] transition-colors" />
@@ -411,12 +434,33 @@ export function HPPCalculator({
               <div className="relative flex items-center">
                 <span className="absolute left-3 text-xs text-[#C4BFBA] select-none">Rp</span>
                 <input type="number" min="0" value={fixedCost}
-                  onChange={e => setFixedCost(e.target.value)}
+                  onChange={e => {
+                    const n = parseFloat(e.target.value);
+                    setFixedCost(e.target.value === '' ? '' : !isNaN(n) && n < 0 ? '0' : e.target.value);
+                  }}
                   className="w-full bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl
                     pl-8 pr-3 py-2.5 text-sm text-right focus:outline-none
                     focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C] transition-colors" />
               </div>
               <p className="text-[11px] text-[#C4BFBA] mt-1.5">Total sewa, gaji, dan biaya tetap lainnya</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#1A1A18] mb-1.5">
+                Target Penjualan
+                <span className="ml-1.5 text-[11px] font-normal text-[#9CA3AF]">untuk skenario</span>
+              </label>
+              <div className="relative flex items-center">
+                <input type="number" min="1" value={targetUnits}
+                  onChange={e => {
+                    const n = parseFloat(e.target.value);
+                    setTargetUnits(e.target.value === '' ? '' : isNaN(n) || n < 1 ? '1' : e.target.value);
+                  }}
+                  className="w-full bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl
+                    px-3 pr-14 py-2.5 text-sm text-right focus:outline-none
+                    focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C] transition-colors" />
+                <span className="absolute right-3 text-xs text-[#C4BFBA] select-none">porsi</span>
+              </div>
+              <p className="text-[11px] text-[#C4BFBA] mt-1.5">Rencana penjualan per bulan</p>
             </div>
           </div>
         </section>
@@ -438,7 +482,7 @@ export function HPPCalculator({
               <span className="text-sm font-medium text-[#1A6B3C]">✓ Tersimpan</span>
             )}
             {showSaveForm && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <input
                   type="text"
                   value={savedName}
@@ -450,24 +494,33 @@ export function HPPCalculator({
                   placeholder="Nama resep..."
                   autoFocus
                   className="bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl px-3 py-1.5 text-sm
-                    focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C] w-48"
+                    focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C]
+                    min-w-0 flex-1 sm:flex-none sm:w-48"
                 />
                 <button
                   type="button"
                   onClick={handleConfirmSave}
-                  className="px-3 py-1.5 bg-[#1A6B3C] text-white text-sm font-medium
-                    rounded-xl hover:bg-[#15593A] transition-colors"
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1A6B3C] text-white
+                    text-sm font-medium rounded-xl hover:bg-[#15593A] transition-colors
+                    disabled:opacity-60 disabled:cursor-not-allowed"
                 >
+                  {isSaving ? <Loader2 size={13} className="animate-spin" /> : null}
                   Simpan
                 </button>
               </div>
+            )}
+            {isSaving && (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-[#1A6B3C]">
+                <Loader2 size={13} className="animate-spin" /> Menyimpan…
+              </span>
             )}
           </div>
         )}
       </div>
 
       <div className="mt-5 lg:mt-0 space-y-4">
-        <ResultsPanel result={result} />
+        <ResultsPanel result={result} fixedCost={parseNum(fixedCost)} targetUnits={parseNum(targetUnits)} />
         {savedRawIngredients.length > 0 && (
           <div className="bg-white rounded-2xl border border-[#E5E3DD] p-5 shadow-sm">
             <span className="text-[10px] font-bold uppercase tracking-widest text-[#C4BFBA] block mb-3">

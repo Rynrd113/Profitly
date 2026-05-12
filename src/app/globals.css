@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #F8F7F2;
+  --surface: #FFFFFF;
+  --text: #1A1A18;
+  --text-muted: #78716C;
+  --border: #E5E3DD;
+  --primary: #1A6B3C;
+  --primary-hover: #15803D;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] { -moz-appearance: textfield; }

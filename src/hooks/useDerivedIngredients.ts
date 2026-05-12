@@ -1,22 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { storageGet, storageSet } from '@/lib/storage';
 import type { DerivedIngredient } from '@/types/hpp';
 
-const STORAGE_KEY = 'profitly-derived-ingredients';
+const KEY = 'profitly-derived-ingredients';
 
 export function loadDerivedIngredients(): DerivedIngredient[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as DerivedIngredient[];
-  } catch {
-    return [];
-  }
+  return storageGet<DerivedIngredient[]>(KEY) ?? [];
 }
 
 export function saveToDerivedStorage(items: DerivedIngredient[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  storageSet(KEY, items);
 }
 
 export function useDerivedIngredients() {

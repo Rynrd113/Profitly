@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Plus_Jakarta_Sans } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -42,7 +43,10 @@ if ('serviceWorker' in navigator) {
 }
         `.trim() }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster richColors position="top-right" />
+      </body>
     </html>
   );
 }

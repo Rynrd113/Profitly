@@ -50,11 +50,77 @@ export interface DerivedProductOutput {
   hpp: number;
 }
 
+export interface PriceHistoryEntry {
+  price: number;
+  volume: number;
+  recordedAt: string;
+}
+
 export interface SavedRawIngredient {
   name: string;           // primary key — upsert by name
   purchasePrice: number;
   purchaseVolume: number;
   unit: 'gr' | 'ml' | 'pcs';
+  currentStock?: number;
+  minStock?: number;
+  priceHistory?: PriceHistoryEntry[];
+}
+
+export interface StockTransactionItem {
+  ingredientName: string;
+  delta: number;          // negative = deduct, positive = restock/adjustment
+  unit: 'gr' | 'ml' | 'pcs';
+  balanceBefore: number;
+  balanceAfter: number;
+}
+
+export interface StockTransaction {
+  id: string;
+  timestamp: string;
+  note: string;
+  items: StockTransactionItem[];
+}
+
+export interface SaleItem {
+  recipeId: string;
+  recipeName: string;
+  qty: number;
+  sellPrice: number;
+  hpp: number;
+  subtotal: number;
+}
+
+export interface SaleDeduction {
+  name: string;
+  amount: number;
+  unit: 'gr' | 'ml' | 'pcs';
+}
+
+export interface SaleRecord {
+  id: string;
+  timestamp: string;
+  tier: 'competitive' | 'standard' | 'premium';
+  items: SaleItem[];
+  totalRevenue: number;
+  totalHPP: number;
+  grossProfit: number;
+  deductions?: SaleDeduction[];
+  cancelled?: boolean;
+  note?: string;
+  customerId?: string;
+  loyaltyRedeemed?: boolean;
+  discountType?: 'percent' | 'nominal';
+  discountValue?: number;
+  discountAmount?: number;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  stamps: number;
+  totalOrders: number;
+  createdAt: string;
 }
 
 export interface SavedRecipeIngredient {

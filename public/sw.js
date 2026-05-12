@@ -1,6 +1,6 @@
-const STATIC_CACHE = 'profitly-static-v1';
-const PAGE_CACHE = 'profitly-pages-v1';
-const FONT_CACHE = 'profitly-fonts-v1';
+const STATIC_CACHE = 'profitly-static-v2';
+const PAGE_CACHE = 'profitly-pages-v2';
+const FONT_CACHE = 'profitly-fonts-v2';
 
 // Cache static Next.js bundles forever (content-addressed filenames)
 const isStatic = (url) => url.pathname.startsWith('/_next/static/');
