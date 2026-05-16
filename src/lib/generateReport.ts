@@ -232,6 +232,16 @@ export interface MonthlyReportData {
     current: number;
     min: number;
   }[];
+  transactions?: {
+    timestamp: string;
+    itemsLabel: string;
+    tier: string;
+    revenue: number;
+    profit: number;
+    note?: string;
+    cancelled?: boolean;
+    paymentMethod?: 'CASH' | 'QRIS';
+  }[];
 }
 
 function drawDailyTrendChart(
@@ -434,6 +444,41 @@ export function generateMonthlyReport(data: MonthlyReportData): void {
       },
       margin: { left: ML, right: MR },
     });
+  }
+
+  // Transaction detail table
+  const txList = data.transactions ?? [];
+  const activeTx = txList.filter(t => !t.cancelled);
+  if (activeTx.length > 0) {
+    if (y + 40 > FOOT) { doc.addPage(); y = 20; }
+    sectionLabel(doc, `Detail Transaksi (${activeTx.length})`, ML, y);
+    y += 4;
+    autoTable(doc, {
+      startY: y,
+      head: [['Waktu', 'Menu', 'Tier', 'Metode', 'Omzet', 'Laba']],
+      body: activeTx.map(t => [
+        new Date(t.timestamp).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+        t.itemsLabel,
+        t.tier,
+        t.paymentMethod ?? 'CASH',
+        formatRp(t.revenue),
+        formatRp(t.profit),
+      ]),
+      styles: { font: 'helvetica', fontSize: 8, cellPadding: { top: 2.5, right: 4, bottom: 2.5, left: 4 }, lineColor: C.border, lineWidth: 0.15 },
+      headStyles: { fillColor: C.green, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 18, halign: 'center' },
+        3: { cellWidth: 16, halign: 'center' },
+        4: { halign: 'right' },
+        5: { halign: 'right' },
+      },
+      bodyStyles: { textColor: C.dark },
+      alternateRowStyles: { fillColor: C.beige },
+      margin: { left: ML, right: MR },
+    });
+    y = (doc as any).lastAutoTable.finalY + 5;
   }
 
   const totalPages: number = (doc as any).internal.getNumberOfPages();

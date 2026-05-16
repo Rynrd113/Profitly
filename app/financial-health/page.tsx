@@ -363,6 +363,18 @@ export default function FinancialHealthPage() {
       trend: currentMonthTrend,
       menuEngineering: menuEngineeringData,
       lowStock: lowStockData,
+      transactions: filteredRecords
+        .filter(r => !r.cancelled)
+        .slice(0, 30)
+        .map(r => ({
+          timestamp: r.timestamp,
+          itemsLabel: r.items.map(i => `${i.qty}× ${i.recipeName}`).join(', '),
+          tier: r.tier,
+          revenue: r.totalRevenue,
+          profit: r.grossProfit,
+          note: r.note,
+          paymentMethod: r.paymentMethod,
+        })),
     });
     toast.success(`Laporan ${periodLabel} diunduh`);
   };
