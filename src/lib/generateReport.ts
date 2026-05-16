@@ -17,6 +17,8 @@ export interface SalesReportData {
   avgTx: number;
   margin: number;
   monthlyTarget?: number;
+  cashTotal?: number;
+  qrisTotal?: number;
   topMenus: { name: string; qty: number; revenue: number }[];
   transactions: { timestamp: string; itemsLabel: string; tier: string; revenue: number; profit: number; note?: string; cancelled?: boolean; paymentMethod?: 'CASH' | 'QRIS' }[];
 }
@@ -92,10 +94,10 @@ export function generateSalesReport(data: SalesReportData): void {
 
   // Payment breakdown
   if (data.txCount > 0) {
-    const cashTotal = data.transactions
+    const cashTotal = data.cashTotal ?? data.transactions
       .filter(t => !t.cancelled && (t.paymentMethod ?? 'CASH') === 'CASH')
       .reduce((s, t) => s + t.revenue, 0);
-    const qrisTotal = data.transactions
+    const qrisTotal = data.qrisTotal ?? data.transactions
       .filter(t => !t.cancelled && t.paymentMethod === 'QRIS')
       .reduce((s, t) => s + t.revenue, 0);
     sectionLabel(doc, 'Rekap Pembayaran', ML, y);

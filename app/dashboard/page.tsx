@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 import { BackupRestore } from '@/components/BackupRestore';
 import { Navbar } from '@/components/Navbar';
 import { AdminGuard } from '@/components/AdminGuard';
-import { generateSalesReport } from '@/lib/generateReport';
+import { generateSalesReport, getPaymentSummary } from '@/lib/generateReport';
 import type { SaleRecord, StockTransactionItem } from '@/types/hpp';
 
 type Period = 'today' | 'month' | 'all' | 'custom';
@@ -786,6 +786,7 @@ export default function DashboardPage() {
     if (isExportingPdf) return;
     setIsExportingPdf(true);
     try {
+      const pmtSummary = getPaymentSummary(current);
       generateSalesReport({
         periodLabel: PERIOD_LABELS[period],
         omzet: metrics.omzet,
@@ -797,6 +798,8 @@ export default function DashboardPage() {
         avgTx: metrics.avgTx,
         margin: metrics.margin,
         monthlyTarget: period === 'month' ? monthlyTarget : undefined,
+        cashTotal: pmtSummary.totalCash,
+        qrisTotal: pmtSummary.totalQRIS,
         topMenus,
         transactions: current.slice(0, 30).map(r => ({
           timestamp: r.timestamp,
