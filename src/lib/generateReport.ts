@@ -90,6 +90,22 @@ export function generateSalesReport(data: SalesReportData): void {
   kpiBox(doc, ML + kw*2+6,  y, kw, 17, 'Rata-rata / Tx',  data.avgTx > 0 ? formatRp(data.avgTx) : '—');
   y += 22;
 
+  // Payment breakdown
+  if (data.txCount > 0) {
+    const cashTotal = data.transactions
+      .filter(t => !t.cancelled && (t.paymentMethod ?? 'CASH') === 'CASH')
+      .reduce((s, t) => s + t.revenue, 0);
+    const qrisTotal = data.transactions
+      .filter(t => !t.cancelled && t.paymentMethod === 'QRIS')
+      .reduce((s, t) => s + t.revenue, 0);
+    sectionLabel(doc, 'Rekap Pembayaran', ML, y);
+    y += 4;
+    kpiBox(doc, ML,          y, kw, 17, 'Total CASH', formatRp(cashTotal));
+    kpiBox(doc, ML + kw + 3, y, kw, 17, 'Total QRIS', formatRp(qrisTotal), C.green);
+    kpiBox(doc, ML + kw*2+6, y, kw, 17, 'Grand Total', formatRp(cashTotal + qrisTotal), C.green);
+    y += 22;
+  }
+
   // Monthly target progress bar
   if (data.monthlyTarget && data.monthlyTarget > 0) {
     const pct = Math.min(1, data.omzet / data.monthlyTarget);
