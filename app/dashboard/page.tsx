@@ -53,7 +53,7 @@ function filterByPeriod(records: SaleRecord[], period: Period, customStart = '',
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     if (period === 'custom') {
       const s = customStart ? new Date(customStart) : new Date(0);
-      const e = customEnd   ? new Date(customEnd + 'T23:59:59') : now;
+      const e = customEnd   ? new Date(customEnd + 'T23:59:59Z') : now;
       return d >= s && d <= e;
     }
     return true;
@@ -837,7 +837,7 @@ export default function DashboardPage() {
       if (period === 'custom') {
         const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
         const s = customStart ? new Date(customStart).getTime() : (current.length > 0 ? new Date(current[current.length - 1].timestamp).getTime() : Date.now());
-        const e = customEnd ? new Date(customEnd + 'T23:59:59').getTime() : Date.now();
+        const e = customEnd ? new Date(customEnd + 'T23:59:59Z').getTime() : Date.now();
         return Math.max(1 / 30, (e - s) / msPerMonth);
       }
       if (current.length === 0) return 0;
@@ -1171,7 +1171,7 @@ export default function DashboardPage() {
                     {metrics.opexDeduction > 0 && (
                       <div className="flex items-center gap-2 text-[var(--text-2)]">
                         <span className="w-3 h-px bg-[#27B18A] inline-block" />
-                        <span>Biaya Operasional{period === 'today' ? ' (est. harian)' : ''}</span>
+                        <span>Biaya Operasional{period === 'today' ? ' (est. harian)' : period === 'custom' ? ' (est. proporsional)' : ''}</span>
                         <span className="ml-auto tabular-nums font-medium text-[#27B18A]">
                           − {formatRp(metrics.opexDeduction)}
                         </span>
