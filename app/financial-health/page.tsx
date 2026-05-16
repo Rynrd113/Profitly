@@ -438,6 +438,64 @@ export default function FinancialHealthPage() {
           </div>
         </div>
 
+        {/* ── Payment breakdown ── */}
+        {filteredRecords.filter(r => !r.cancelled).length > 0 && (() => {
+          const active   = filteredRecords.filter(r => !r.cancelled);
+          const cashRecs = active.filter(r => (r.paymentMethod ?? 'CASH') === 'CASH');
+          const qrisRecs = active.filter(r => r.paymentMethod === 'QRIS');
+          const total    = active.reduce((s, r) => s + r.totalRevenue, 0);
+          return (
+            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden">
+              <div className="px-5 py-3 border-b border-[var(--border-subtle)]">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)]">
+                  Rekap Pembayaran
+                </span>
+              </div>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[var(--border-subtle)]">
+                    {(['Metode', 'Transaksi', 'Omzet'] as const).map((h, i) => (
+                      <th
+                        key={h}
+                        className={`px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] ${
+                          i === 0 ? 'text-left' : 'text-right'
+                        }`}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {([
+                    { label: 'CASH', recs: cashRecs },
+                    { label: 'QRIS', recs: qrisRecs },
+                  ] as { label: string; recs: typeof active }[]).map(({ label, recs }) => (
+                    <tr key={label} className="border-b border-[var(--border-subtle)]">
+                      <td className="px-5 py-2.5 text-sm font-medium text-[var(--text)]">{label}</td>
+                      <td className="px-5 py-2.5 text-sm text-right tabular-nums text-[var(--text-2)]">
+                        {recs.length}×
+                      </td>
+                      <td className="px-5 py-2.5 text-sm text-right tabular-nums text-[var(--text)]">
+                        {formatRp(recs.reduce((s, r) => s + r.totalRevenue, 0))}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className="bg-[var(--bg)]/40">
+                    <td className="px-5 py-2.5 text-sm font-bold text-[var(--text)]">Total</td>
+                    <td className="px-5 py-2.5 text-sm font-bold text-right tabular-nums text-[var(--text)]">
+                      {active.length}×
+                    </td>
+                    <td className="px-5 py-2.5 text-sm font-bold text-right tabular-nums text-[#27B18A]">
+                      {formatRp(total)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
+
         {/* ── Investment inputs ── */}
         <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
           <div className="flex items-center gap-2 mb-4">
