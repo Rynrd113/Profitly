@@ -1165,6 +1165,9 @@ function ShiftClosing({
     .sort((a, b) => b[1].amount - a[1].amount)
     .slice(0, 5);
 
+  const cashRecs = todayRecords.filter(r => (r.paymentMethod ?? 'CASH') === 'CASH');
+  const qrisRecs = todayRecords.filter(r => r.paymentMethod === 'QRIS');
+
   const dateStr = new Date().toLocaleDateString('id-ID', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
@@ -1232,6 +1235,57 @@ function ShiftClosing({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {todayRecords.length > 0 && (
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-[var(--border-subtle)]">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)]">
+              Rekap Pembayaran
+            </span>
+          </div>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-[var(--border-subtle)]">
+                {(['Metode', 'Transaksi', 'Omzet'] as const).map((h, i) => (
+                  <th
+                    key={h}
+                    className={`px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] ${
+                      i === 0 ? 'text-left' : 'text-right'
+                    }`}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {([
+                { label: 'CASH', recs: cashRecs },
+                { label: 'QRIS', recs: qrisRecs },
+              ] as { label: string; recs: typeof todayRecords }[]).map(({ label, recs }) => (
+                <tr key={label} className="border-b border-[var(--border-subtle)]">
+                  <td className="px-5 py-2.5 text-sm font-medium text-[var(--text)]">{label}</td>
+                  <td className="px-5 py-2.5 text-sm text-right tabular-nums text-[var(--text-2)]">
+                    {recs.length}×
+                  </td>
+                  <td className="px-5 py-2.5 text-sm text-right tabular-nums text-[var(--text)]">
+                    {formatRp(recs.reduce((s, r) => s + r.totalRevenue, 0))}
+                  </td>
+                </tr>
+              ))}
+              <tr className="bg-[var(--bg)]/40">
+                <td className="px-5 py-2.5 text-sm font-bold text-[var(--text)]">Total</td>
+                <td className="px-5 py-2.5 text-sm font-bold text-right tabular-nums text-[var(--text)]">
+                  {todayRecords.length}×
+                </td>
+                <td className="px-5 py-2.5 text-sm font-bold text-right tabular-nums text-[#27B18A]">
+                  {formatRp(omzet)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       )}
 
