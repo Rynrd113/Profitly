@@ -444,6 +444,7 @@ export function generateMonthlyReport(data: MonthlyReportData): void {
       },
       margin: { left: ML, right: MR },
     });
+    y = (doc as any).lastAutoTable.finalY + 9;
   }
 
   // Transaction detail table
