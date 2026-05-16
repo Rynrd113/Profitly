@@ -18,7 +18,7 @@ export interface SalesReportData {
   margin: number;
   monthlyTarget?: number;
   topMenus: { name: string; qty: number; revenue: number }[];
-  transactions: { timestamp: string; itemsLabel: string; tier: string; revenue: number; profit: number; note?: string; cancelled?: boolean; paymentMethod?: string }[];
+  transactions: { timestamp: string; itemsLabel: string; tier: string; revenue: number; profit: number; note?: string; cancelled?: boolean; paymentMethod?: 'CASH' | 'QRIS' }[];
 }
 
 export function getPaymentSummary(records: SaleRecord[]): {
