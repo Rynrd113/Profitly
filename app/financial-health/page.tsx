@@ -5,6 +5,7 @@ import {
   TrendingUp, TrendingDown, Plus, Trash2, Target,
   CalendarCheck, Wallet, AlertTriangle, CheckCircle,
   Clock, BarChart3, Edit3, Check, FileDown, Star,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis,
@@ -142,6 +143,8 @@ export default function FinancialHealthPage() {
   const defaultEnd = now.toISOString().split('T')[0];
   const [startDate, setStartDate] = useState(defaultStart);
   const [endDate, setEndDate] = useState(defaultEnd);
+  const [recapPage, setRecapPage] = useState(0);
+  const RECAP_PAGE_SIZE = 20;
 
   const filteredRecords = useMemo(() => {
     const s = new Date(startDate);
@@ -151,6 +154,15 @@ export default function FinancialHealthPage() {
       return d >= s && d <= e;
     });
   }, [records, startDate, endDate]);
+
+  const recapRecords = useMemo(
+    () => filteredRecords
+      .filter(r => !r.cancelled)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+    [filteredRecords],
+  );
+
+  useEffect(() => { setRecapPage(0); }, [filteredRecords]);
 
   const totalInvestment = useMemo(
     () => items.reduce((s, it) => s + parseNum(it.cost), 0),
@@ -504,6 +516,103 @@ export default function FinancialHealthPage() {
                   </tr>
                 </tbody>
               </table>
+            </div>
+          );
+        })()}
+
+        {/* ── Recap Table ── */}
+        {recapRecords.length > 0 && (() => {
+          const totalPages = Math.ceil(recapRecords.length / RECAP_PAGE_SIZE);
+          const page = Math.min(recapPage, Math.max(0, totalPages - 1));
+          const pageRecs = recapRecords.slice(page * RECAP_PAGE_SIZE, (page + 1) * RECAP_PAGE_SIZE);
+          return (
+            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2 px-5 py-4 border-b border-[var(--border-subtle)]">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)]">
+                  Rekap Transaksi
+                </span>
+                <span className="ml-auto text-xs text-[var(--text-3)]">
+                  {recapRecords.length} transaksi
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px]">
+                  <thead>
+                    <tr className="border-b border-[var(--border-subtle)]">
+                      {['Tanggal', 'ID', 'Menu', 'Qty', 'Total', 'Metode'].map((h, i) => (
+                        <th
+                          key={h}
+                          className={`px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] ${
+                            i >= 3 ? 'text-right' : 'text-left'
+                          }`}
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageRecs.map(r => {
+                      const method = r.paymentMethod ?? 'CASH';
+                      const qty = r.items.reduce((s, i) => s + i.qty, 0);
+                      return (
+                        <tr key={r.id} className="border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--surface-2)] transition-colors">
+                          <td className="px-4 py-3 text-xs text-[var(--text-2)] whitespace-nowrap">
+                            {new Date(r.timestamp).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td className="px-4 py-3 text-[11px] font-mono text-[var(--text-3)]">
+                            {r.id.slice(0, 8)}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-[var(--text)] max-w-[200px] truncate">
+                            {r.items.map(i => `${i.qty}× ${i.recipeName}`).join(', ')}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-right tabular-nums text-[var(--text-2)]">
+                            {qty}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-right tabular-nums font-medium text-[var(--text)]">
+                            {formatRp(r.totalRevenue)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              method === 'QRIS'
+                                ? 'bg-blue-50 text-blue-600'
+                                : 'bg-[var(--tint-amber)] text-[#27B18A]'
+                            }`}>
+                              {method}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--border-subtle)]">
+                  <button
+                    type="button"
+                    onClick={() => setRecapPage(p => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="flex items-center gap-1 text-xs font-medium text-[var(--text-2)] hover:text-[var(--text)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors px-2 py-1.5 rounded-lg hover:bg-[var(--bg)]"
+                  >
+                    <ChevronLeft size={14} /> Sebelumnya
+                  </button>
+                  <span className="text-xs text-[var(--text-3)] tabular-nums">
+                    {page + 1} / {totalPages}
+                    <span className="text-[var(--text-4)] ml-1.5">
+                      ({page * RECAP_PAGE_SIZE + 1}–{Math.min((page + 1) * RECAP_PAGE_SIZE, recapRecords.length)} dari {recapRecords.length})
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRecapPage(p => Math.min(totalPages - 1, p + 1))}
+                    disabled={page >= totalPages - 1}
+                    className="flex items-center gap-1 text-xs font-medium text-[var(--text-2)] hover:text-[var(--text)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors px-2 py-1.5 rounded-lg hover:bg-[var(--bg)]"
+                  >
+                    Berikutnya <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
             </div>
           );
         })()}
