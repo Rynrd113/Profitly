@@ -26,34 +26,42 @@ import { AdminGuard } from '@/components/AdminGuard';
 import { generateSalesReport } from '@/lib/generateReport';
 import type { SaleRecord, StockTransactionItem } from '@/types/hpp';
 
-type Period = 'today' | 'month' | 'all';
+type Period = 'today' | 'month' | 'all' | 'custom';
 
 const PERIOD_LABELS: Record<Period, string> = {
   today: 'Hari Ini',
   month: 'Bulan Ini',
   all: 'Semua Waktu',
+  custom: 'Custom',
 };
 
 const PREV_PERIOD_LABELS: Record<Period, string> = {
   today: 'kemarin',
   month: 'bulan lalu',
   all: '',
+  custom: '',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function filterByPeriod(records: SaleRecord[], period: Period): SaleRecord[] {
+function filterByPeriod(records: SaleRecord[], period: Period, customStart = '', customEnd = ''): SaleRecord[] {
   const now = new Date();
   return records.filter(r => {
     const d = new Date(r.timestamp);
     if (period === 'today') return d.toDateString() === now.toDateString();
     if (period === 'month')
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    if (period === 'custom') {
+      const s = customStart ? new Date(customStart) : new Date(0);
+      const e = customEnd   ? new Date(customEnd + 'T23:59:59') : now;
+      return d >= s && d <= e;
+    }
     return true;
   });
 }
 
 function filterPrevPeriod(records: SaleRecord[], period: Period): SaleRecord[] {
+  if (period === 'custom' || period === 'all') return [];
   const now = new Date();
   return records.filter(r => {
     const d = new Date(r.timestamp);
@@ -736,6 +744,8 @@ export default function DashboardPage() {
   const { ingredients: rawIngredients, restoreStock } = useSavedRawIngredients();
   const { add: addTransaction } = useStockTransactions();
   const [period, setPeriod] = useState<Period>('month');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd]     = useState('');
   const [opex, setOpex] = useState(0);
   const [opexInput, setOpexInput] = useState('');
   const [editingOpex, setEditingOpex] = useState(false);
@@ -805,8 +815,8 @@ export default function DashboardPage() {
   };
 
   const current = useMemo(
-    () => filterByPeriod(records, period).filter(r => !r.cancelled),
-    [records, period],
+    () => filterByPeriod(records, period, customStart, customEnd).filter(r => !r.cancelled),
+    [records, period, customStart, customEnd],
   );
   const previous = useMemo(
     () => filterPrevPeriod(records, period).filter(r => !r.cancelled),
@@ -824,6 +834,12 @@ export default function DashboardPage() {
     const monthsElapsed = (() => {
       if (period === 'today') return 1 / 30;
       if (period === 'month') return 1;
+      if (period === 'custom') {
+        const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
+        const s = customStart ? new Date(customStart).getTime() : (current.length > 0 ? new Date(current[current.length - 1].timestamp).getTime() : Date.now());
+        const e = customEnd ? new Date(customEnd + 'T23:59:59').getTime() : Date.now();
+        return Math.max(1 / 30, (e - s) / msPerMonth);
+      }
       if (current.length === 0) return 0;
       const earliest = Math.min(...current.map(r => new Date(r.timestamp).getTime()));
       const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
@@ -843,7 +859,7 @@ export default function DashboardPage() {
       trendModal:  pctChange(modal,     pModal),
       trendLabaK:  pctChange(labaKotor, pLabaK),
     };
-  }, [current, previous, opex, period]);
+  }, [current, previous, opex, period, customStart, customEnd]);
 
   const topMenus = useMemo(() => {
     const map = new Map<string, { name: string; qty: number; revenue: number }>();
@@ -1038,21 +1054,40 @@ export default function DashboardPage() {
           <WeeklyTop3Card items={weeklyTop3} />
         </div>
 
-        <div className="flex items-center gap-2">
-          {(Object.keys(PERIOD_LABELS) as Period[]).map(p => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPeriod(p)}
-              className={`px-4 py-1.5 rounded-xl text-sm font-medium border transition-all ${
-                period === p
-                  ? 'bg-[#27B18A] text-white border-[#27B18A]'
-                  : 'bg-[var(--surface)] text-[var(--text-2)] border-[var(--border)] hover:border-[#27B18A]/30'
-              }`}
-            >
-              {PERIOD_LABELS[p]}
-            </button>
-          ))}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {(Object.keys(PERIOD_LABELS) as Period[]).map(p => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPeriod(p)}
+                className={`px-4 py-1.5 rounded-xl text-sm font-medium border transition-all ${
+                  period === p
+                    ? 'bg-[#27B18A] text-white border-[#27B18A]'
+                    : 'bg-[var(--surface)] text-[var(--text-2)] border-[var(--border)] hover:border-[#27B18A]/30'
+                }`}
+              >
+                {PERIOD_LABELS[p]}
+              </button>
+            ))}
+          </div>
+          {period === 'custom' && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="date"
+                value={customStart}
+                onChange={e => setCustomStart(e.target.value)}
+                className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-1.5 text-sm text-[var(--text)] focus:outline-none focus:border-[#27B18A]"
+              />
+              <span className="text-[var(--text-3)] text-sm">—</span>
+              <input
+                type="date"
+                value={customEnd}
+                onChange={e => setCustomEnd(e.target.value)}
+                className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-1.5 text-sm text-[var(--text)] focus:outline-none focus:border-[#27B18A]"
+              />
+            </div>
+          )}
         </div>
 
         {!hasData ? (
