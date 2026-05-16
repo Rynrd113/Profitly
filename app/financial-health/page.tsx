@@ -247,15 +247,16 @@ export default function FinancialHealthPage() {
     : 0;
 
   const cashFlowForecast = useMemo(() => {
-    const cutoff7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const currentNow = new Date();
+    const cutoff7d = new Date(currentNow.getTime() - 7 * 24 * 60 * 60 * 1000);
     const last7 = filteredRecords.filter(r => !r.cancelled && new Date(r.timestamp) >= cutoff7d);
     const dailyAvgRevenue = last7.reduce((s, r) => s + r.totalRevenue, 0) / 7;
     const dailyAvgProfit  = last7.reduce((s, r) => s + r.grossProfit,  0) / 7;
     const active = filteredRecords.filter(r => !r.cancelled);
     const mtdRevenue = active.reduce((s, r) => s + r.totalRevenue, 0);
     const mtdProfit  = active.reduce((s, r) => s + r.grossProfit,  0);
-    const daysInMonth   = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const daysRemaining = daysInMonth - now.getDate();
+    const daysInMonth   = new Date(currentNow.getFullYear(), currentNow.getMonth() + 1, 0).getDate();
+    const daysRemaining = daysInMonth - currentNow.getDate();
     return {
       hasData: last7.length > 0,
       dailyAvgRevenue,
@@ -290,7 +291,7 @@ export default function FinancialHealthPage() {
       const prev = map.get(day) ?? { omzet: 0, profit: 0 };
       map.set(day, { omzet: prev.omzet + r.totalRevenue, profit: prev.profit + r.grossProfit });
     }
-    const endD = endDate ? new Date(endDate) : now;
+    const endD = new Date(endDate);
     const daysInMonth = new Date(endD.getFullYear(), endD.getMonth() + 1, 0).getDate();
     return Array.from({ length: daysInMonth }, (_, i) => ({
       day: i + 1,
