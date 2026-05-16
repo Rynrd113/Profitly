@@ -107,6 +107,7 @@ export interface SaleRecord {
   deductions?: SaleDeduction[];
   cancelled?: boolean;
   note?: string;
+  paymentMethod?: 'CASH' | 'QRIS';
   customerId?: string;
   loyaltyRedeemed?: boolean;
   discountType?: 'percent' | 'nominal';
