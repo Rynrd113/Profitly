@@ -144,8 +144,8 @@ export default function FinancialHealthPage() {
   const [endDate, setEndDate] = useState(defaultEnd);
 
   const filteredRecords = useMemo(() => {
-    const s = new Date(startDate || defaultStart);
-    const e = new Date((endDate || defaultEnd) + 'T23:59:59');
+    const s = new Date(startDate);
+    const e = new Date(endDate + 'T23:59:59');
     return records.filter(r => {
       const d = new Date(r.timestamp);
       return d >= s && d <= e;
@@ -247,16 +247,16 @@ export default function FinancialHealthPage() {
     : 0;
 
   const cashFlowForecast = useMemo(() => {
-    const currentNow = new Date();
-    const cutoff7d = new Date(currentNow.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const anchor = new Date(endDate + 'T23:59:59');
+    const cutoff7d = new Date(anchor.getTime() - 7 * 24 * 60 * 60 * 1000);
     const last7 = filteredRecords.filter(r => !r.cancelled && new Date(r.timestamp) >= cutoff7d);
     const dailyAvgRevenue = last7.reduce((s, r) => s + r.totalRevenue, 0) / 7;
     const dailyAvgProfit  = last7.reduce((s, r) => s + r.grossProfit,  0) / 7;
     const active = filteredRecords.filter(r => !r.cancelled);
     const mtdRevenue = active.reduce((s, r) => s + r.totalRevenue, 0);
     const mtdProfit  = active.reduce((s, r) => s + r.grossProfit,  0);
-    const daysInMonth   = new Date(currentNow.getFullYear(), currentNow.getMonth() + 1, 0).getDate();
-    const daysRemaining = daysInMonth - currentNow.getDate();
+    const daysInMonth   = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate();
+    const daysRemaining = daysInMonth - anchor.getDate();
     return {
       hasData: last7.length > 0,
       dailyAvgRevenue,
@@ -267,7 +267,7 @@ export default function FinancialHealthPage() {
       forecastRevenue: mtdRevenue + dailyAvgRevenue * daysRemaining,
       forecastProfit:  mtdProfit  + dailyAvgProfit  * daysRemaining,
     };
-  }, [filteredRecords]);
+  }, [filteredRecords, endDate]);
 
   const foodCostItems = useMemo(() =>
     recipes
