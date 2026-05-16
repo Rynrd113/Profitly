@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { PricingTier } from '@/types/hpp';
+import type { PricingTier, SaleRecord } from '@/types/hpp';
 import type { BEPResult } from '@/lib/engine';
 import { formatRp } from '@/lib/format';
 
@@ -18,7 +18,22 @@ export interface SalesReportData {
   margin: number;
   monthlyTarget?: number;
   topMenus: { name: string; qty: number; revenue: number }[];
-  transactions: { timestamp: string; itemsLabel: string; tier: string; revenue: number; profit: number; note?: string; cancelled?: boolean }[];
+  transactions: { timestamp: string; itemsLabel: string; tier: string; revenue: number; profit: number; note?: string; cancelled?: boolean; paymentMethod?: string }[];
+}
+
+export function getPaymentSummary(records: SaleRecord[]): {
+  totalCash: number;
+  totalQRIS: number;
+  totalCombined: number;
+} {
+  const active = records.filter(r => !r.cancelled);
+  const totalCash = active
+    .filter(r => (r.paymentMethod ?? 'CASH') === 'CASH')
+    .reduce((s, r) => s + r.totalRevenue, 0);
+  const totalQRIS = active
+    .filter(r => r.paymentMethod === 'QRIS')
+    .reduce((s, r) => s + r.totalRevenue, 0);
+  return { totalCash, totalQRIS, totalCombined: totalCash + totalQRIS };
 }
 
 export function generateSalesReport(data: SalesReportData): void {
