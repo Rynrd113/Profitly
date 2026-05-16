@@ -561,7 +561,7 @@ export default function FinancialHealthPage() {
                             {new Date(r.timestamp).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                           </td>
                           <td className="px-4 py-3 text-[11px] font-mono text-[var(--text-3)]">
-                            {r.id.slice(0, 8)}
+                            {r.id}
                           </td>
                           <td className="px-4 py-3 text-xs text-[var(--text)] max-w-[200px] truncate">
                             {r.items.map(i => `${i.qty}× ${i.recipeName}`).join(', ')}
@@ -576,7 +576,7 @@ export default function FinancialHealthPage() {
                             <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full ${
                               method === 'QRIS'
                                 ? 'bg-blue-50 text-blue-600'
-                                : 'bg-[var(--tint-amber)] text-[#27B18A]'
+                                : 'bg-green-50 text-[#27B18A]'
                             }`}>
                               {method}
                             </span>
