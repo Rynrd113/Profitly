@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Calculator, Layers } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
+import { AdminGuard } from '@/components/AdminGuard';
 import dynamic from 'next/dynamic';
 import { ModeSelectorCards, type CalcMode } from '@/components/ModeSelectorCards';
 import { HPPCalculator } from '@/components/HPPCalculator';
@@ -69,8 +70,9 @@ export default function CalculatorPage() {
   ];
 
   return (
+    <AdminGuard>
     <div
-      className="min-h-screen bg-[#F8F7F2]"
+      className="min-h-screen bg-[var(--bg)]"
       style={{ fontFamily: 'var(--font-jakarta, system-ui, sans-serif)' }}
     >
       <Navbar active="calculator" />
@@ -86,8 +88,8 @@ export default function CalculatorPage() {
               onClick={() => setActiveMenu(tab.id)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium
                 transition-colors border ${activeMenu === tab.id
-                  ? 'bg-[#1A6B3C] text-white border-[#1A6B3C]'
-                  : 'bg-white text-[#78716C] border-[#E5E3DD] hover:border-[#1A6B3C]/30 hover:text-[#1A6B3C]'
+                  ? 'bg-[#27B18A] text-white border-[#27B18A]'
+                  : 'bg-[var(--surface)] text-[var(--text-2)] border-[var(--border)] hover:border-[#27B18A]/30 hover:text-[#27B18A]'
                 }`}
             >
               {tab.icon}
@@ -141,5 +143,6 @@ export default function CalculatorPage() {
         )}
       </main>
     </div>
+    </AdminGuard>
   );
 }

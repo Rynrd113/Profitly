@@ -70,12 +70,12 @@ export function IngredientNameInput({
         onFocus={() => setOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className="w-full bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl px-3 py-2 text-sm
-          focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C]
-          transition-colors placeholder:text-[#C4BFBA]"
+        className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm
+          focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]
+          transition-colors placeholder:text-[var(--text-4)]"
       />
       {showDropdown && (
-        <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-[#E5E3DD]
+        <div className="absolute left-0 top-full mt-1 z-20 bg-[var(--surface)] border border-[var(--border)]
           rounded-xl shadow-lg py-1 min-w-full max-h-48 overflow-y-auto">
           {filtered.map((item, i) => (
             <button
@@ -83,10 +83,10 @@ export function IngredientNameInput({
               type="button"
               onMouseDown={e => { e.preventDefault(); handleSelect(item); }}
               className={`w-full text-left px-3 py-2 text-sm transition-colors
-                ${i === activeIdx ? 'bg-[#F0FDF4] text-[#1A6B3C]' : 'hover:bg-[#F8F7F2]'}`}
+                ${i === activeIdx ? 'bg-[var(--tint-amber-deep)] text-[#27B18A]' : 'hover:bg-[var(--bg)]'}`}
             >
-              <span className="font-medium text-[#1A1A18] block">{item.name}</span>
-              <span className="text-[11px] text-[#78716C]">
+              <span className="font-medium text-[var(--text)] block">{item.name}</span>
+              <span className="text-[11px] text-[var(--text-2)]">
                 {fmt(item.purchasePrice)} · {item.purchaseVolume.toLocaleString('id-ID')} {item.unit}
               </span>
             </button>

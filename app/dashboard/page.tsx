@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import {
   TrendingUp, TrendingDown,
   ShoppingCart, Receipt, BarChart3, Wallet,
@@ -13,14 +14,18 @@ import {
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
+  BarChart, Bar, ReferenceLine, Cell,
 } from 'recharts';
+import { getTopMenusByMargin } from '@/lib/analytics';
 import { useSalesRecords } from '@/hooks/useSalesRecords';
 import { useSavedRawIngredients } from '@/hooks/useSavedRawIngredients';
 import { useStockTransactions } from '@/hooks/useStockTransactions';
 import { formatRp, parseNum } from '@/lib/format';
 import { storageGet, storageSet } from '@/lib/storage';
 import { toast } from 'sonner';
-import { BackupRestore } from '@/components/BackupRestore';
+import { useAuthStore } from '@/store/authStore';
+import { logActivity } from '@/lib/logger';
+const BackupRestore = dynamic(() => import('@/components/BackupRestore').then(m => m.BackupRestore), { ssr: false });
 import { Navbar } from '@/components/Navbar';
 import { AdminGuard } from '@/components/AdminGuard';
 import { generateSalesReport, getPaymentSummary } from '@/lib/generateReport';
@@ -229,7 +234,8 @@ function SalesTrendChart({ data }: {
           <p className="text-sm text-[var(--text-4)]">Belum ada data 7 hari terakhir</p>
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={220}>
+        <div className="h-[220px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
             <CartesianGrid
               strokeDasharray="3 3"
@@ -270,7 +276,8 @@ function SalesTrendChart({ data }: {
               activeDot={{ r: 5, fill: '#27B18A', strokeWidth: 2, stroke: '#fff' }}
             />
           </LineChart>
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        </div>
       )}
     </div>
   );
@@ -541,7 +548,7 @@ function EmptyState() {
       <BarChart3 size={32} className="mx-auto text-[var(--text-4)] mb-3" />
       <p className="text-sm font-medium text-[var(--text-2)]">Belum ada data penjualan</p>
       <p className="text-xs text-[var(--text-4)] mt-1 mb-5">
-        Buka halaman Kasir dan selesaikan transaksi pertama.
+        Selesaikan transaksi pertama di Kasir.
       </p>
       <Link
         href="/pos"
@@ -741,6 +748,7 @@ function MenuAnalysis({ items, period }: { items: MenuAnalysisItem[]; period: Pe
 
 export default function DashboardPage() {
   const { records, cancel: cancelRecord } = useSalesRecords();
+  const { userRole } = useAuthStore();
   const { ingredients: rawIngredients, restoreStock } = useSavedRawIngredients();
   const { add: addTransaction } = useStockTransactions();
   const [period, setPeriod] = useState<Period>('month');
@@ -875,6 +883,8 @@ export default function DashboardPage() {
     }
     return Array.from(map.values()).sort((a, b) => b.qty - a.qty).slice(0, 5);
   }, [current]);
+
+  const topByMargin = useMemo(() => getTopMenusByMargin(records, 3), [records]);
 
   const chartData = useMemo(() => {
     const now = new Date();
@@ -1017,6 +1027,10 @@ export default function DashboardPage() {
   }, [chartData, records]);
 
   const handleCancel = (record: SaleRecord) => {
+    if (userRole !== 'OWNER') {
+      toast.error('Akses Ditolak: Hanya Pengelola yang dapat membatalkan transaksi');
+      return;
+    }
     if (record.deductions && record.deductions.length > 0) {
       restoreStock(record.deductions.map(d => ({ name: d.name, amount: d.amount })));
       const items: StockTransactionItem[] = record.deductions.map(d => {
@@ -1142,6 +1156,70 @@ export default function DashboardPage() {
                 onSave={saveTarget}
               />
             )}
+
+            {/* ── Revenue vs Target (7 hari) ── */}
+            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)]">Revenue 7 Hari</p>
+                  {monthlyTarget > 0 && (
+                    <p className="text-[11px] text-[var(--text-3)] mt-0.5">
+                      Garis target = {formatRp(Math.round(monthlyTarget / 30))}/hari
+                    </p>
+                  )}
+                </div>
+                <BarChart3 size={14} className="text-[var(--text-4)]" />
+              </div>
+              <div className="h-[200px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barSize={22}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
+                    <YAxis hide />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12 }}
+                      formatter={(v) => [formatRp(Number(v ?? 0)), 'Omzet']}
+                    />
+                    {monthlyTarget > 0 && (
+                      <ReferenceLine y={monthlyTarget / 30} stroke="#F59E0B" strokeDasharray="4 4" />
+                    )}
+                    <Bar dataKey="omzet" radius={[4, 4, 0, 0]}>
+                      {chartData.map((entry, i) => (
+                        <Cell
+                          key={i}
+                          fill={monthlyTarget > 0 && entry.omzet >= monthlyTarget / 30 ? '#27B18A' : '#27B18A66'}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {topByMargin.length > 0 && (
+                <div className="mt-4 border-t border-[var(--border)] pt-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)] mb-3">Top Margin</p>
+                  <div className="space-y-2">
+                    {topByMargin.map((m, i) => (
+                      <div key={m.name} className="flex items-center gap-3">
+                        <span className="text-[10px] font-bold text-[var(--text-4)] w-4">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-[var(--text)] truncate">{m.name}</p>
+                          <div className="h-1.5 rounded-full bg-[var(--bg)] mt-1 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-[#27B18A]"
+                              style={{ width: `${(m.margin * 100).toFixed(0)}%` }}
+                            />
+                          </div>
+                        </div>
+                        <span className="text-xs font-bold text-[#27B18A] tabular-nums shrink-0">
+                          {(m.margin * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden">
               <div className="p-5 sm:grid sm:grid-cols-[1fr_auto] sm:gap-8 sm:items-center">

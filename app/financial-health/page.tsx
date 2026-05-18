@@ -636,7 +636,7 @@ export default function FinancialHealthPage() {
                   type="text"
                   value={item.name}
                   onChange={e => updateItem(item.id, 'name', e.target.value)}
-                  placeholder="cth: Mesin espresso, Grinder..."
+                  placeholder="Nama Item"
                   className="flex-1 bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2
                     text-sm focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20
                     focus:border-[#27B18A] placeholder:text-[var(--text-4)]"
@@ -981,7 +981,8 @@ export default function FinancialHealthPage() {
                   </div>
                 </div>
 
-                <ResponsiveContainer width="100%" height={240}>
+                <div className="h-[240px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={projectedChartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
@@ -1028,6 +1029,7 @@ export default function FinancialHealthPage() {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+                </div>
 
                 <p className="text-[10px] text-[var(--text-4)] mt-3 pt-3 border-t border-[var(--border-subtle)]">
                   {cumulativeData.length > 0
@@ -1111,7 +1113,7 @@ export default function FinancialHealthPage() {
                 <AlertTriangle size={28} className="mx-auto text-[var(--text-4)] mb-3" />
                 <p className="text-sm font-medium text-[var(--text-2)]">Belum ada data penjualan</p>
                 <p className="text-xs text-[var(--text-4)] mt-1">
-                  Catat transaksi di Kasir untuk melihat proyeksi balik modal.
+                  Catat transaksi di Kasir untuk melihat proyeksi.
                 </p>
               </div>
             )}

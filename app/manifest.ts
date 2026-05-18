@@ -5,10 +5,10 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'ProfitLy — Kalkulator HPP',
     short_name: 'ProfitLy',
     description: 'Hitung HPP, saran harga jual, dan titik impas untuk bisnis kuliner Anda.',
-    start_url: '/calculator',
+    start_url: '/',
     display: 'standalone',
-    background_color: '#F8F7F2',
-    theme_color: '#1A6B3C',
+    background_color: '#0F172A',
+    theme_color: '#27B18A',
     orientation: 'portrait',
     icons: [
       {

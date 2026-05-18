@@ -1,17 +1,14 @@
-const STATIC_CACHE = 'profitly-static-v2';
-const PAGE_CACHE = 'profitly-pages-v2';
-const FONT_CACHE = 'profitly-fonts-v2';
+const STATIC_CACHE = 'profitly-static-v3';
+const PAGE_CACHE   = 'profitly-pages-v3';
+const FONT_CACHE   = 'profitly-fonts-v3';
 
-// Cache static Next.js bundles forever (content-addressed filenames)
 const isStatic = (url) => url.pathname.startsWith('/_next/static/');
-
-// Cache Google Fonts
-const isFont = (url) =>
+const isFont   = (url) =>
   url.hostname === 'fonts.googleapis.com' ||
   url.hostname === 'fonts.gstatic.com';
 
-// Pages to pre-cache on install
-const PRECACHE_PAGES = ['/calculator'];
+// Pages pre-cached on install so they're available offline immediately
+const PRECACHE_PAGES = ['/', '/dashboard', '/calculator', '/financial-health', '/settings'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -41,7 +38,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   const sameOrigin = url.origin === self.location.origin;
 
-  // Static bundles: cache-first (safe, content-addressed)
+  // Static bundles: cache-first (content-addressed, safe to cache forever)
   if (sameOrigin && isStatic(url)) {
     event.respondWith(
       caches.match(request).then(
@@ -73,16 +70,30 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Same-origin pages: network-first, fall back to cache
+  // Same-origin pages: network-first, fall back to cache, then offline shell
   if (sameOrigin) {
     event.respondWith(
       fetch(request)
         .then((res) => {
-          const clone = res.clone();
-          caches.open(PAGE_CACHE).then((c) => c.put(request, clone));
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(PAGE_CACHE).then((c) => c.put(request, clone));
+          }
           return res;
         })
-        .catch(() => caches.match(request))
+        .catch(() =>
+          caches.match(request).then(
+            (cached) =>
+              cached ||
+              caches.match('/').then(
+                (shell) =>
+                  shell ||
+                  new Response('<h1>Offline</h1><p>Tidak ada koneksi internet.</p>', {
+                    headers: { 'Content-Type': 'text/html' },
+                  })
+              )
+          )
+        )
     );
   }
 });

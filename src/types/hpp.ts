@@ -98,6 +98,7 @@ export interface SaleDeduction {
 
 export interface SaleRecord {
   id: string;
+  businessId?: string;
   timestamp: string;
   tier: 'competitive' | 'standard' | 'premium';
   items: SaleItem[];
@@ -113,6 +114,8 @@ export interface SaleRecord {
   discountType?: 'percent' | 'nominal';
   discountValue?: number;
   discountAmount?: number;
+  customerPhone?: string;
+  customerName?: string;
 }
 
 export interface Customer {
@@ -152,4 +155,5 @@ export interface SavedRecipe {
   batchSize: string;
   fixedCost: string;
   hpp: number;
+  inventoryIngredients?: Array<{ inventoryId: string; quantity: number }>;
 }

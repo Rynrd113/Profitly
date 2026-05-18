@@ -1,4 +1,4 @@
-import sharp from 'sharp';
+﻿import sharp from 'sharp';
 
 const SIZES = [180, 192, 512];
 
@@ -7,7 +7,7 @@ const makeSvg = (size: number) => {
   const radius = size * 0.2;
   const fontSize = size * 0.52;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" rx="${radius}" fill="#1A6B3C"/>
+  <rect width="${size}" height="${size}" rx="${radius}" fill="#D97706"/>
   <text
     x="${size / 2}"
     y="${size * 0.72}"

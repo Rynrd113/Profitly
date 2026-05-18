@@ -1,21 +1,50 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Download, Upload, Trash2, Shield, Info, Database, PackagePlus, Loader2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Download, Upload, Trash2, Shield, Info, Database, PackagePlus, Loader2, UserCog, Lock, Unlock, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navbar } from '@/components/Navbar';
+import { AdminGuard } from '@/components/AdminGuard';
+import { useRole } from '@/hooks/useRole';
 import { exportBackup, importBackup } from '@/lib/backup';
+import { exportSalesCSV, exportInventoryCSV, parseInventoryCSV } from '@/lib/dataExchange';
+import { useSalesRecords } from '@/hooks/useSalesRecords';
 import { useSavedRawIngredients } from '@/hooks/useSavedRawIngredients';
 import { useSavedRecipes } from '@/hooks/useSavedRecipes';
 import { useStockTransactions } from '@/hooks/useStockTransactions';
 import { parseNum } from '@/lib/format';
 
 export default function SettingsPage() {
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef    = useRef<HTMLInputElement>(null);
+  const csvRef     = useRef<HTMLInputElement>(null);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [clearConfirm, setClearConfirm] = useState(false);
 
-  const { ingredients, receiveStock } = useSavedRawIngredients();
+  const { switchToKasir, setPin } = useRole();
+  const [showModeSection, setShowModeSection] = useState(false);
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [pinSaved, setPinSaved] = useState(false);
+
+  const { ingredients, receiveStock, save: upsertIngredients } = useSavedRawIngredients();
+  const { allRecords: salesRecords } = useSalesRecords();
   const { recomputeHPPForIngredient } = useSavedRecipes();
   const { add: addTransaction } = useStockTransactions();
+
+  const storageKeys = [
+    { label: 'Resep', key: 'profitly-saved-recipes' },
+    { label: 'Bahan Baku', key: 'profitly-saved-raw-ingredients' },
+    { label: 'Transaksi', key: 'profitly-sales-records' },
+    { label: 'Stok', key: 'profitly-stock-transactions' },
+  ];
+  const [storageSizes, setStorageSizes] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const sizes: Record<string, number> = {};
+    for (const { key } of storageKeys) {
+      sizes[key] = Math.round((localStorage.getItem(key)?.length ?? 0) / 1024 * 10) / 10;
+    }
+    setStorageSizes(sizes);
+  }, []);
 
   const [rcvName, setRcvName] = useState('');
   const [rcvQty, setRcvQty] = useState('');
@@ -101,16 +130,42 @@ export default function SettingsPage() {
   };
 
   const handleClearData = () => {
-    if (!confirm('Hapus semua data? Tindakan ini tidak bisa dibatalkan.')) return;
     const keys = Object.keys(localStorage).filter(k => k.startsWith('profitly-'));
     keys.forEach(k => localStorage.removeItem(k));
+    setClearConfirm(false);
     toast.success('Semua data telah dihapus');
     setTimeout(() => window.location.reload(), 1500);
   };
 
+  const handleCSVImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvImporting(true);
+    try {
+      const text = await file.text();
+      const rows = parseInventoryCSV(text);
+      if (rows.length === 0) { toast.error('CSV kosong atau format tidak dikenali'); return; }
+      upsertIngredients(rows.map(r => ({
+        name: r.name ?? '',
+        purchasePrice: r.purchasePrice ?? 0,
+        purchaseVolume: r.purchaseVolume ?? 1,
+        unit: r.unit ?? 'gr',
+        ...(r.currentStock !== undefined ? { currentStock: r.currentStock } : {}),
+        ...(r.minStock !== undefined ? { minStock: r.minStock } : {}),
+      })));
+      toast.success(`${rows.length} bahan berhasil diimpor dari CSV`);
+    } catch {
+      toast.error('Gagal membaca file CSV');
+    } finally {
+      setCsvImporting(false);
+      if (csvRef.current) csvRef.current.value = '';
+    }
+  };
+
   return (
+    <AdminGuard>
     <div
-      className="min-h-screen bg-[#F8F7F2]"
+      className="min-h-screen bg-[var(--bg)]"
       style={{ fontFamily: 'var(--font-jakarta, system-ui, sans-serif)' }}
     >
       <Navbar active="settings" />
@@ -118,42 +173,42 @@ export default function SettingsPage() {
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-6 lg:py-8 space-y-6">
         <div>
           <h1
-            className="text-2xl font-bold text-[#1A1A18]"
+            className="text-2xl font-bold text-[var(--text)]"
             style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}
           >
             Pengaturan
           </h1>
-          <p className="text-sm text-[#9CA3AF] mt-0.5">Kelola data dan keamanan aplikasi</p>
+          <p className="text-sm text-[var(--text-3)] mt-0.5">Kelola data dan keamanan aplikasi</p>
         </div>
 
         {/* ── Penerimaan Barang ── */}
-        <div className="bg-white rounded-2xl border border-[#E5E3DD] shadow-sm p-5">
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
           <div className="flex items-center gap-2 mb-1">
-            <PackagePlus size={14} className="text-[#1A6B3C]" />
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#C4BFBA]">
+            <PackagePlus size={14} className="text-[#27B18A]" />
+            <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--text-4)]">
               Penerimaan Barang
             </h2>
           </div>
-          <p className="text-xs text-[#9CA3AF] mb-5">
+          <p className="text-xs text-[var(--text-3)] mb-5">
             Tambah stok masuk dan perbarui harga beli. HPP semua resep terkait dihitung ulang otomatis.
           </p>
 
           {ingredients.length === 0 ? (
-            <p className="text-sm text-[#C4BFBA]">
+            <p className="text-sm text-[var(--text-4)]">
               Belum ada bahan di katalog. Simpan bahan lewat Kalkulator HPP terlebih dahulu.
             </p>
           ) : (
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-[#C4BFBA] block mb-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block mb-1.5">
                   Bahan Baku
                 </label>
                 <select
                   value={rcvName}
                   onChange={e => handleIngredientSelect(e.target.value)}
-                  className="w-full bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl px-3 py-2.5 text-sm
-                    focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C]
-                    text-[#1A1A18]"
+                  className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm
+                    focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]
+                    text-[var(--text)]"
                 >
                   <option value="">— Pilih bahan —</option>
                   {ingredients.map(ing => (
@@ -164,9 +219,9 @@ export default function SettingsPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-[#C4BFBA] block mb-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block mb-1.5">
                     Jumlah Masuk{rcvName ? ` (${ingredients.find(x => x.name === rcvName)?.unit ?? ''})` : ''}
                   </label>
                   <input
@@ -175,12 +230,12 @@ export default function SettingsPage() {
                     placeholder="0"
                     value={rcvQty}
                     onChange={e => setRcvQty(e.target.value)}
-                    className="w-full bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl px-3 py-2.5 text-sm
-                      focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C]"
+                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-[#C4BFBA] block mb-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block mb-1.5">
                     Harga Beli Baru (Rp)
                   </label>
                   <input
@@ -189,12 +244,12 @@ export default function SettingsPage() {
                     placeholder="0"
                     value={rcvPrice}
                     onChange={e => setRcvPrice(e.target.value)}
-                    className="w-full bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl px-3 py-2.5 text-sm
-                      focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C]"
+                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-[#C4BFBA] block mb-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block mb-1.5">
                     Volume Beli
                   </label>
                   <input
@@ -203,8 +258,8 @@ export default function SettingsPage() {
                     placeholder="0"
                     value={rcvVolume}
                     onChange={e => setRcvVolume(e.target.value)}
-                    className="w-full bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl px-3 py-2.5 text-sm
-                      focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C]"
+                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]"
                   />
                 </div>
               </div>
@@ -217,7 +272,7 @@ export default function SettingsPage() {
                 if (!ing || (ing.purchasePrice === parseNum(rcvPrice) && ing.purchaseVolume === parseNum(rcvVolume))) return null;
                 return (
                   <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium ${
-                    diff > 0 ? 'bg-[#FEF2F2] text-[#DC2626]' : 'bg-[#ECFDF5] text-[#1A6B3C]'
+                    diff > 0 ? 'bg-[var(--tint-red)] text-[#DC2626]' : 'bg-[var(--tint-amber)] text-[#27B18A]'
                   }`}>
                     <span>{diff > 0 ? '▲' : '▼'} Harga per {ing.unit} berubah {Math.abs(diff).toFixed(1)}% — HPP resep akan dihitung ulang</span>
                   </div>
@@ -228,8 +283,8 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleReceiveStock}
                 disabled={rcvLoading || !rcvName}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#1A6B3C] text-white
-                  text-sm font-semibold rounded-xl hover:bg-[#15593A] transition-colors
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#27B18A] text-white
+                  text-sm font-semibold rounded-xl hover:bg-[#0E927A] transition-colors
                   disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {rcvLoading
@@ -242,14 +297,14 @@ export default function SettingsPage() {
         </div>
 
         {/* ── Backup & Restore ── */}
-        <div className="bg-white rounded-2xl border border-[#E5E3DD] shadow-sm p-5">
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
           <div className="flex items-center gap-2 mb-1">
-            <Shield size={14} className="text-[#1A6B3C]" />
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#C4BFBA]">
+            <Shield size={14} className="text-[#27B18A]" />
+            <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--text-4)]">
               Backup & Restore
             </h2>
           </div>
-          <p className="text-xs text-[#9CA3AF] mb-5">
+          <p className="text-xs text-[var(--text-3)] mb-5">
             Unduh semua data ke file JSON sebagai cadangan. Pulihkan kapan saja dengan upload file backup.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
@@ -257,16 +312,16 @@ export default function SettingsPage() {
               type="button"
               onClick={handleExport}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
-                text-sm font-semibold bg-[#1A6B3C] text-white border border-[#1A6B3C]
-                hover:bg-[#15593A] transition-colors"
+                text-sm font-semibold bg-[#27B18A] text-white border border-[#27B18A]
+                hover:bg-[#0E927A] transition-colors"
             >
               <Download size={15} />
               Export Backup
             </button>
             <label
               className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
-                text-sm font-semibold bg-white text-[#78716C] border border-[#E5E3DD]
-                hover:border-[#1A6B3C]/40 hover:text-[#1A6B3C] transition-colors cursor-pointer"
+                text-sm font-semibold bg-[var(--surface)] text-[var(--text-2)] border border-[var(--border)]
+                hover:border-[#27B18A]/40 hover:text-[#27B18A] transition-colors cursor-pointer"
             >
               <Upload size={15} />
               Restore Backup
@@ -281,66 +336,226 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#E5E3DD] shadow-sm p-5">
+        {/* ── Portabilitas Data (CSV) ── */}
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
           <div className="flex items-center gap-2 mb-1">
-            <Database size={14} className="text-[#9CA3AF]" />
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#C4BFBA]">
+            <FileSpreadsheet size={14} className="text-[#27B18A]" />
+            <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--text-4)]">
+              Portabilitas Data (CSV)
+            </h2>
+          </div>
+          <p className="text-xs text-[var(--text-3)] mb-5">
+            Ekspor data ke CSV untuk dianalisis di Excel/Google Sheets. Impor bahan baku dari file CSV.
+          </p>
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => exportSalesCSV(salesRecords)}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl
+                  text-sm font-semibold border border-[var(--border)] text-[var(--text-2)]
+                  hover:border-[#27B18A]/40 hover:text-[#27B18A] transition-colors"
+              >
+                <Download size={13} />
+                Ekspor Penjualan
+              </button>
+              <button
+                type="button"
+                onClick={() => exportInventoryCSV(ingredients)}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl
+                  text-sm font-semibold border border-[var(--border)] text-[var(--text-2)]
+                  hover:border-[#27B18A]/40 hover:text-[#27B18A] transition-colors"
+              >
+                <Download size={13} />
+                Ekspor Inventori
+              </button>
+            </div>
+            <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
+              text-sm font-semibold border border-[var(--border)] text-[var(--text-2)]
+              hover:border-[#27B18A]/40 hover:text-[#27B18A] transition-colors cursor-pointer">
+              {csvImporting ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+              Impor Bahan (CSV)
+              <input
+                ref={csvRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={handleCSVImport}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Database size={14} className="text-[var(--text-3)]" />
+            <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--text-4)]">
               Penyimpanan Data
             </h2>
           </div>
-          <p className="text-xs text-[#9CA3AF] mb-4">
+          <p className="text-xs text-[var(--text-3)] mb-4">
             Semua data tersimpan secara lokal di perangkat Anda dan dienkripsi dengan base64.
             Tidak ada data yang dikirim ke server.
           </p>
           <div className="grid grid-cols-2 gap-3 text-sm">
-            {[
-              { label: 'Resep', key: 'profitly-saved-recipes' },
-              { label: 'Bahan Baku', key: 'profitly-saved-raw-ingredients' },
-              { label: 'Transaksi', key: 'profitly-sales-records' },
-              { label: 'Stok', key: 'profitly-stock-transactions' },
-            ].map(({ label, key }) => {
-              const size = typeof window !== 'undefined'
-                ? Math.round((localStorage.getItem(key)?.length ?? 0) / 1024 * 10) / 10
-                : 0;
+            {storageKeys.map(({ label, key }) => {
+              const size = storageSizes[key] ?? 0;
               return (
-                <div key={key} className="bg-[#F8F7F2] rounded-xl px-3 py-2.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#C4BFBA] mb-0.5">{label}</p>
-                  <p className="text-sm font-semibold text-[#1A1A18]">{size > 0 ? `${size} KB` : '—'}</p>
+                <div key={key} className="bg-[var(--bg)] rounded-xl px-3 py-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] mb-0.5">{label}</p>
+                  <p className="text-sm font-semibold text-[var(--text)]">{size > 0 ? `${size} KB` : '—'}</p>
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#FECACA] shadow-sm p-5">
+        <div className="bg-[var(--surface)] rounded-2xl border border-[#7F1D1D] shadow-sm p-5">
           <div className="flex items-center gap-2 mb-1">
             <Trash2 size={14} className="text-[#DC2626]" />
             <h2 className="text-xs font-bold uppercase tracking-widest text-[#DC2626]">
               Zona Berbahaya
             </h2>
           </div>
-          <p className="text-xs text-[#9CA3AF] mb-4">
+          <p className="text-xs text-[var(--text-3)] mb-4">
             Menghapus semua data lokal secara permanen. Tidak dapat dipulihkan tanpa backup.
           </p>
-          <button
-            type="button"
-            onClick={handleClearData}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
-              bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA] hover:bg-[#FEE2E2] transition-colors"
-          >
-            <Trash2 size={14} />
-            Hapus Semua Data
-          </button>
+          {clearConfirm ? (
+            <div className="flex items-center gap-3 p-3 bg-[var(--tint-red)] border border-[#7F1D1D] rounded-xl">
+              <p className="text-sm text-[#DC2626] font-medium flex-1">
+                Yakin hapus semua data? Tidak bisa dibatalkan.
+              </p>
+              <button
+                type="button"
+                onClick={handleClearData}
+                className="text-sm font-semibold text-white bg-[#DC2626] px-3 py-1.5 rounded-lg
+                  hover:bg-[#B91C1C] transition-colors shrink-0"
+              >
+                Hapus
+              </button>
+              <button
+                type="button"
+                onClick={() => setClearConfirm(false)}
+                className="text-sm text-[var(--text-2)] px-3 py-1.5 rounded-lg hover:bg-[var(--surface)]
+                  transition-colors shrink-0"
+              >
+                Batal
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setClearConfirm(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                bg-[var(--tint-red)] text-[#DC2626] border border-[#7F1D1D] hover:bg-[#450A0A] transition-colors"
+            >
+              <Trash2 size={14} />
+              Hapus Semua Data
+            </button>
+          )}
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#E5E3DD] shadow-sm p-5">
+        {/* ── Mode Pengguna ── */}
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <UserCog size={14} className="text-[#27B18A]" />
+            <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--text-4)]">
+              Mode Pengguna
+            </h2>
+          </div>
+          <p className="text-xs text-[var(--text-3)] mb-4">
+            Aktifkan Mode Kasir agar staf hanya bisa mengakses halaman Kasir.
+            Untuk kembali ke Mode Pengelola, PIN diperlukan jika sudah diset.
+          </p>
+
+          {!showModeSection ? (
+            <button
+              type="button"
+              onClick={() => setShowModeSection(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                bg-[var(--tint-amber)] text-[#27B18A] border border-[#9A3412]
+                hover:bg-[var(--tint-amber-deep)] transition-colors"
+            >
+              <Lock size={14} />
+              Aktifkan Mode Kasir
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block mb-1.5">
+                    PIN Pengelola (opsional)
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Kosongkan jika tanpa PIN"
+                    value={newPin}
+                    onChange={e => setNewPin(e.target.value)}
+                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block mb-1.5">
+                    Konfirmasi PIN
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Ulangi PIN"
+                    value={confirmPin}
+                    onChange={e => setConfirmPin(e.target.value)}
+                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]"
+                  />
+                </div>
+              </div>
+              {newPin && confirmPin && newPin !== confirmPin && (
+                <p className="text-xs text-[#DC2626]">PIN tidak cocok</p>
+              )}
+              {pinSaved && (
+                <p className="text-xs text-[#27B18A]">PIN disimpan. Beralih ke Mode Kasir...</p>
+              )}
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  disabled={!!(newPin && newPin !== confirmPin)}
+                  onClick={() => {
+                    if (newPin && newPin !== confirmPin) return;
+                    if (newPin) setPin(newPin);
+                    setPinSaved(true);
+                    setTimeout(() => {
+                      switchToKasir();
+                      window.location.href = '/pos';
+                    }, 800);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-[#27B18A] text-white
+                    text-sm font-semibold rounded-xl hover:bg-[#0E927A] transition-colors
+                    disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Lock size={14} />
+                  Konfirmasi & Aktifkan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowModeSection(false); setNewPin(''); setConfirmPin(''); }}
+                  className="px-4 py-2.5 rounded-xl border border-[var(--border)] text-[var(--text-2)]
+                    text-sm font-semibold hover:bg-[var(--bg)] transition-colors"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
           <div className="flex items-center gap-2 mb-3">
-            <Info size={14} className="text-[#9CA3AF]" />
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#C4BFBA]">
+            <Info size={14} className="text-[var(--text-3)]" />
+            <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--text-4)]">
               Tentang Aplikasi
             </h2>
           </div>
-          <div className="space-y-2 text-sm text-[#78716C]">
+          <div className="space-y-2 text-sm text-[var(--text-2)]">
             {[
               ['Aplikasi', 'ProfitLy'],
               ['Versi', '0.1.0'],
@@ -349,12 +564,13 @@ export default function SettingsPage() {
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between">
                 <span>{k}</span>
-                <span className="font-semibold text-[#1A1A18]">{v}</span>
+                <span className="font-semibold text-[var(--text)]">{v}</span>
               </div>
             ))}
           </div>
         </div>
       </main>
     </div>
+    </AdminGuard>
   );
 }

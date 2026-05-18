@@ -58,9 +58,9 @@ function TextInput({
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className={`bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl px-3 py-2 text-sm
-        focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C]
-        transition-colors placeholder:text-[#C4BFBA] ${className}`}
+      className={`bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm
+        focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]
+        transition-colors placeholder:text-[var(--text-4)] ${className}`}
     />
   );
 }
@@ -74,7 +74,7 @@ function NumInput({
   return (
     <div className={`relative flex items-center ${className}`}>
       {prefix && (
-        <span className="absolute left-2.5 text-xs text-[#C4BFBA] pointer-events-none select-none">{prefix}</span>
+        <span className="absolute left-2.5 text-xs text-[var(--text-4)] pointer-events-none select-none">{prefix}</span>
       )}
       <input
         type="number"
@@ -83,13 +83,13 @@ function NumInput({
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         inputMode="decimal"
-        className={`w-full bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl text-sm text-right
-          focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C]
-          transition-colors placeholder:text-[#C4BFBA] py-2
+        className={`w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right
+          focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]
+          transition-colors placeholder:text-[var(--text-4)] py-2
           ${prefix ? 'pl-7' : 'pl-2'} ${suffix ? 'pr-7' : 'pr-2'}`}
       />
       {suffix && (
-        <span className="absolute right-2.5 text-xs text-[#C4BFBA] pointer-events-none select-none">{suffix}</span>
+        <span className="absolute right-2.5 text-xs text-[var(--text-4)] pointer-events-none select-none">{suffix}</span>
       )}
     </div>
   );
@@ -100,7 +100,7 @@ function DeleteBtn({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center justify-center w-8 h-8 rounded-lg text-[#C4BFBA]
+      className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--text-4)]
         hover:text-red-400 hover:bg-red-50 transition-colors shrink-0"
     >
       <Trash2 size={14} />
@@ -113,8 +113,8 @@ function AddRowBtn({ onClick, label }: { onClick: () => void; label: string }) {
     <button
       type="button"
       onClick={onClick}
-      className="mt-4 flex items-center gap-1.5 text-sm font-medium text-[#1A6B3C]
-        hover:text-[#15803D] transition-colors"
+      className="mt-4 flex items-center gap-1.5 text-sm font-medium text-[#27B18A]
+        hover:text-[#0E927A] transition-colors"
     >
       <Plus size={15} />
       {label}
@@ -125,8 +125,8 @@ function AddRowBtn({ onClick, label }: { onClick: () => void; label: string }) {
 function SectionHeader({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <div className="flex items-center gap-2 mb-4">
-      <span className="text-[#1A6B3C]">{icon}</span>
-      <h2 className="text-xs font-bold uppercase tracking-widest text-[#1A1A18]">{label}</h2>
+      <span className="text-[#27B18A]">{icon}</span>
+      <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--text)]">{label}</h2>
     </div>
   );
 }
@@ -137,26 +137,26 @@ const TIER_META = {
   competitive: {
     label: 'Kompetitif',
     desc: 'Margin 20%',
-    color: '#6B7280',
-    ring: '#E5E7EB',
-    bg: '#F9FAFB',
-    bar: '#9CA3AF',
+    color: 'var(--text-2)',
+    ring: 'var(--border)',
+    bg: 'var(--surface)',
+    bar: 'var(--text-3)',
   },
   standard: {
     label: 'Standar',
     desc: 'Margin 35%',
-    color: '#1A6B3C',
-    ring: '#BBF7D0',
-    bg: '#F0FDF4',
-    bar: '#1A6B3C',
+    color: '#27B18A',
+    ring: '#065F46',
+    bg: 'var(--tint-amber-deep)',
+    bar: '#27B18A',
   },
   premium: {
     label: 'Premium',
     desc: 'Margin 50%',
-    color: '#92400E',
-    ring: '#FDE68A',
-    bg: '#FFFBEB',
-    bar: '#D97706',
+    color: '#065F46',
+    ring: '#78350F',
+    bg: 'var(--tint-amber)',
+    bar: '#27B18A',
   },
 } as const;
 
@@ -171,7 +171,7 @@ function PricingCard({
       className="rounded-2xl p-4 border transition-shadow"
       style={{
         background: m.bg,
-        borderColor: isHighlighted ? m.ring : '#E5E3DD',
+        borderColor: isHighlighted ? m.ring : 'var(--border)',
         borderWidth: isHighlighted ? '1.5px' : '1px',
         boxShadow: isHighlighted ? `0 0 0 3px ${m.ring}50` : 'none',
       }}
@@ -183,7 +183,7 @@ function PricingCard({
               {m.label}
             </span>
             {isHighlighted && (
-              <span className="inline-flex items-center gap-0.5 bg-[#D97706] text-white
+              <span className="inline-flex items-center gap-0.5 bg-[#27B18A] text-white
                 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
                 <Star size={8} fill="white" />
                 SWEET SPOT
@@ -286,7 +286,7 @@ export default function CalculatorPage() {
       style={{ gridTemplateColumns: 'var(--ing-cols)' }}
     >
       {cols.map(h => (
-        <span key={h} className="text-[10px] font-bold text-[#C4BFBA] uppercase tracking-wider">
+        <span key={h} className="text-[10px] font-bold text-[var(--text-4)] uppercase tracking-wider">
           {h}
         </span>
       ))}
@@ -295,24 +295,24 @@ export default function CalculatorPage() {
 
   return (
     <div
-      className="min-h-screen bg-[#F8F7F2]"
+      className="min-h-screen bg-[var(--bg)]"
       style={{ fontFamily: 'var(--font-jakarta, system-ui, sans-serif)' }}
     >
       {/* Sticky header */}
-      <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-[#E5E3DD]">
+      <header className="sticky top-0 z-20 bg-[var(--surface)]/90 backdrop-blur-md border-b border-[var(--border)]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#1A6B3C] flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-[#27B18A] flex items-center justify-center">
               <ChefHat size={15} color="white" />
             </div>
             <span
-              className="font-bold text-[#1A1A18] text-lg tracking-tight"
+              className="font-bold text-[var(--text)] text-lg tracking-tight"
               style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}
             >
               ProfitLy
             </span>
           </div>
-          <span className="text-xs text-[#9CA3AF] bg-[#F8F7F2] border border-[#E5E3DD]
+          <span className="text-xs text-[var(--text-3)] bg-[var(--bg)] border border-[var(--border)]
             px-3 py-1 rounded-full font-medium">
             Kalkulator HPP
           </span>
@@ -326,7 +326,7 @@ export default function CalculatorPage() {
           <div className="space-y-5">
 
             {/* Bahan Baku */}
-            <section className="bg-white rounded-2xl border border-[#E5E3DD] p-5 shadow-sm">
+            <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
               <SectionHeader icon={<Package size={15} />} label="Bahan Baku" />
 
               {/* Desktop column headers */}
@@ -335,7 +335,7 @@ export default function CalculatorPage() {
                 style={{ gridTemplateColumns: '1fr 104px 76px 72px 76px 60px 36px' }}
               >
                 {['Nama Bahan', 'Harga Beli', 'Volume', 'Satuan', 'Pakai', 'Susut %', ''].map(h => (
-                  <span key={h} className="text-[10px] font-bold text-[#C4BFBA] uppercase tracking-wider">{h}</span>
+                  <span key={h} className="text-[10px] font-bold text-[var(--text-4)] uppercase tracking-wider">{h}</span>
                 ))}
               </div>
 
@@ -343,7 +343,7 @@ export default function CalculatorPage() {
                 {ingredients.map(row => (
                   <div key={row.id}>
                     {/* Mobile card */}
-                    <div className="md:hidden bg-[#F8F7F2] rounded-xl p-3 space-y-2">
+                    <div className="md:hidden bg-[var(--bg)] rounded-xl p-3 space-y-2">
                       <div className="flex items-center gap-2">
                         <TextInput
                           value={row.name}
@@ -355,20 +355,20 @@ export default function CalculatorPage() {
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         <div>
-                          <p className="text-[10px] text-[#C4BFBA] mb-1">Harga Beli</p>
+                          <p className="text-[10px] text-[var(--text-4)] mb-1">Harga Beli</p>
                           <NumInput value={row.purchasePrice} onChange={v => updateIng(row.id, 'purchasePrice', v)} placeholder="14000" prefix="Rp" />
                         </div>
                         <div>
-                          <p className="text-[10px] text-[#C4BFBA] mb-1">Volume</p>
+                          <p className="text-[10px] text-[var(--text-4)] mb-1">Volume</p>
                           <NumInput value={row.purchaseVolume} onChange={v => updateIng(row.id, 'purchaseVolume', v)} placeholder="1000" />
                         </div>
                         <div>
-                          <p className="text-[10px] text-[#C4BFBA] mb-1">Satuan</p>
+                          <p className="text-[10px] text-[var(--text-4)] mb-1">Satuan</p>
                           <select
                             value={row.unit}
                             onChange={e => updateIng(row.id, 'unit', e.target.value as IngredientRow['unit'])}
-                            className="w-full bg-white border border-[#E5E3DD] rounded-xl px-2 py-2 text-sm
-                              focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C]"
+                            className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-2 py-2 text-sm
+                              focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]"
                           >
                             <option value="gr">gr</option>
                             <option value="ml">ml</option>
@@ -378,11 +378,11 @@ export default function CalculatorPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <p className="text-[10px] text-[#C4BFBA] mb-1">Pemakaian</p>
+                          <p className="text-[10px] text-[var(--text-4)] mb-1">Pemakaian</p>
                           <NumInput value={row.usage} onChange={v => updateIng(row.id, 'usage', v)} placeholder="200" />
                         </div>
                         <div>
-                          <p className="text-[10px] text-[#C4BFBA] mb-1">Susut</p>
+                          <p className="text-[10px] text-[var(--text-4)] mb-1">Susut</p>
                           <NumInput value={row.yieldFactor} onChange={v => updateIng(row.id, 'yieldFactor', v)} placeholder="100" suffix="%" />
                         </div>
                       </div>
@@ -399,8 +399,8 @@ export default function CalculatorPage() {
                       <select
                         value={row.unit}
                         onChange={e => updateIng(row.id, 'unit', e.target.value as IngredientRow['unit'])}
-                        className="bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl px-2 py-2 text-sm
-                          focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C]"
+                        className="bg-[var(--bg)] border border-[var(--border)] rounded-xl px-2 py-2 text-sm
+                          focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]"
                       >
                         <option value="gr">gr</option>
                         <option value="ml">ml</option>
@@ -418,7 +418,7 @@ export default function CalculatorPage() {
             </section>
 
             {/* Biaya Operasional */}
-            <section className="bg-white rounded-2xl border border-[#E5E3DD] p-5 shadow-sm">
+            <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
               <SectionHeader icon={<Zap size={15} />} label="Biaya Operasional" />
 
               <div
@@ -426,7 +426,7 @@ export default function CalculatorPage() {
                 style={{ gridTemplateColumns: '1fr 148px 80px 36px' }}
               >
                 {['Nama Biaya', 'Biaya Bulanan', 'Porsi %', ''].map(h => (
-                  <span key={h} className="text-[10px] font-bold text-[#C4BFBA] uppercase tracking-wider">{h}</span>
+                  <span key={h} className="text-[10px] font-bold text-[var(--text-4)] uppercase tracking-wider">{h}</span>
                 ))}
               </div>
 
@@ -434,7 +434,7 @@ export default function CalculatorPage() {
                 {ops.map(row => (
                   <div key={row.id}>
                     {/* Mobile */}
-                    <div className="md:hidden bg-[#F8F7F2] rounded-xl p-3 space-y-2">
+                    <div className="md:hidden bg-[var(--bg)] rounded-xl p-3 space-y-2">
                       <div className="flex items-center gap-2">
                         <TextInput
                           value={row.name}
@@ -446,11 +446,11 @@ export default function CalculatorPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <p className="text-[10px] text-[#C4BFBA] mb-1">Biaya Bulanan</p>
+                          <p className="text-[10px] text-[var(--text-4)] mb-1">Biaya Bulanan</p>
                           <NumInput value={row.price} onChange={v => updateOp(row.id, 'price', v)} placeholder="500000" prefix="Rp" />
                         </div>
                         <div>
-                          <p className="text-[10px] text-[#C4BFBA] mb-1">Porsi dibebankan</p>
+                          <p className="text-[10px] text-[var(--text-4)] mb-1">Porsi dibebankan</p>
                           <NumInput value={row.usage} onChange={v => updateOp(row.id, 'usage', v)} placeholder="10" suffix="%" />
                         </div>
                       </div>
@@ -474,11 +474,11 @@ export default function CalculatorPage() {
             </section>
 
             {/* Parameter produksi */}
-            <section className="bg-white rounded-2xl border border-[#E5E3DD] p-5 shadow-sm">
+            <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
               <SectionHeader icon={<SlidersHorizontal size={15} />} label="Parameter Produksi" />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-[#1A1A18] mb-1.5">
+                  <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
                     Total Porsi per Batch
                   </label>
                   <div className="relative flex items-center">
@@ -487,32 +487,32 @@ export default function CalculatorPage() {
                       min="1"
                       value={totalOutput}
                       onChange={e => setTotalOutput(e.target.value)}
-                      className="w-full bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl
+                      className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl
                         px-3 pr-14 py-2.5 text-sm text-right focus:outline-none
-                        focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C] transition-colors"
+                        focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A] transition-colors"
                     />
-                    <span className="absolute right-3 text-xs text-[#C4BFBA] select-none">porsi</span>
+                    <span className="absolute right-3 text-xs text-[var(--text-4)] select-none">porsi</span>
                   </div>
-                  <p className="text-[11px] text-[#C4BFBA] mt-1.5">Jumlah cup/porsi dalam satu kali produksi</p>
+                  <p className="text-[11px] text-[var(--text-4)] mt-1.5">Jumlah cup/porsi dalam satu kali produksi</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#1A1A18] mb-1.5">
+                  <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
                     Biaya Tetap Bulanan
-                    <span className="ml-1.5 text-[11px] font-normal text-[#9CA3AF]">untuk BEP</span>
+                    <span className="ml-1.5 text-[11px] font-normal text-[var(--text-3)]">untuk BEP</span>
                   </label>
                   <div className="relative flex items-center">
-                    <span className="absolute left-3 text-xs text-[#C4BFBA] select-none">Rp</span>
+                    <span className="absolute left-3 text-xs text-[var(--text-4)] select-none">Rp</span>
                     <input
                       type="number"
                       min="0"
                       value={fixedCost}
                       onChange={e => setFixedCost(e.target.value)}
-                      className="w-full bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl
+                      className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl
                         pl-8 pr-3 py-2.5 text-sm text-right focus:outline-none
-                        focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C] transition-colors"
+                        focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A] transition-colors"
                     />
                   </div>
-                  <p className="text-[11px] text-[#C4BFBA] mt-1.5">Total sewa, gaji, dan biaya tetap lainnya</p>
+                  <p className="text-[11px] text-[var(--text-4)] mt-1.5">Total sewa, gaji, dan biaya tetap lainnya</p>
                 </div>
               </div>
             </section>
@@ -522,32 +522,32 @@ export default function CalculatorPage() {
           <div className="mt-5 lg:mt-0 lg:sticky lg:top-[73px] space-y-4">
 
             {/* HPP */}
-            <div className="bg-white rounded-2xl border border-[#E5E3DD] p-5 shadow-sm">
+            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#C4BFBA]">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)]">
                   HPP per Porsi
                 </span>
-                <TrendingUp size={15} className="text-[#1A6B3C]" />
+                <TrendingUp size={15} className="text-[#27B18A]" />
               </div>
               {result ? (
                 <>
                   <p
-                    className="text-[2.25rem] font-bold leading-none text-[#1A1A18] tabular-nums"
+                    className="text-[2.25rem] font-bold leading-none text-[var(--text)] tabular-nums"
                     style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}
                   >
                     {formatRp(result.hpp)}
                   </p>
-                  <p className="text-xs text-[#9CA3AF] mt-2">Harga Pokok Produksi</p>
+                  <p className="text-xs text-[var(--text-3)] mt-2">Harga Pokok Produksi</p>
                 </>
               ) : (
                 <>
                   <p
-                    className="text-[2.25rem] font-bold leading-none text-[#D1CBC3]"
+                    className="text-[2.25rem] font-bold leading-none text-[#A7C4BC]"
                     style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}
                   >
                     Rp —
                   </p>
-                  <p className="text-xs text-[#C4BFBA] mt-2">Masukkan data bahan baku terlebih dahulu</p>
+                  <p className="text-xs text-[var(--text-4)] mt-2">Masukkan data bahan baku terlebih dahulu</p>
                 </>
               )}
             </div>
@@ -560,8 +560,8 @@ export default function CalculatorPage() {
                 ))}
               </div>
             ) : (
-              <div className="bg-white rounded-2xl border border-[#E5E3DD] p-5 shadow-sm text-center">
-                <p className="text-sm text-[#C4BFBA]">
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm text-center">
+                <p className="text-sm text-[var(--text-4)]">
                   Saran harga jual akan muncul otomatis di sini
                 </p>
               </div>
@@ -569,27 +569,27 @@ export default function CalculatorPage() {
 
             {/* BEP */}
             {result?.bep && (
-              <div className="bg-white rounded-2xl border border-[#E5E3DD] p-5 shadow-sm">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#C4BFBA] block mb-3">
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)] block mb-3">
                   Titik Impas (BEP) — Harga Standar
                 </span>
                 <div className="flex items-baseline gap-1.5">
                   <span
-                    className="text-3xl font-bold text-[#1A1A18] tabular-nums"
+                    className="text-3xl font-bold text-[var(--text)] tabular-nums"
                     style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}
                   >
                     {Math.ceil(result.bep.bepUnit).toLocaleString('id-ID')}
                   </span>
-                  <span className="text-sm text-[#9CA3AF]">porsi / bulan</span>
+                  <span className="text-sm text-[var(--text-3)]">porsi / bulan</span>
                 </div>
-                <p className="text-xs text-[#9CA3AF] mt-1.5">
+                <p className="text-xs text-[var(--text-3)] mt-1.5">
                   {formatRp(result.bep.bepRevenue)} omzet minimal untuk balik modal
                 </p>
               </div>
             )}
 
             {/* Footer note */}
-            <p className="text-[11px] text-[#C4BFBA] text-center pb-2">
+            <p className="text-[11px] text-[var(--text-4)] text-center pb-2">
               Semua perhitungan otomatis · data tidak disimpan
             </p>
           </div>

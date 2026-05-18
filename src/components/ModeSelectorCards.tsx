@@ -29,12 +29,12 @@ export function ModeSelectorCards({
             className={`flex-1 relative flex flex-col items-center gap-1.5 py-3 px-2
               rounded-xl border text-xs font-semibold transition-all overflow-hidden
               ${isActive
-                ? 'border-[#1A6B3C] text-[#1A6B3C] bg-white'
-                : 'border-[#E5E3DD] text-[#9CA3AF] bg-white hover:text-[#1A1A18]'
+                ? 'border-[#27B18A] text-[#27B18A] bg-[var(--surface)]'
+                : 'border-[var(--border)] text-[var(--text-3)] bg-[var(--surface)] hover:text-[var(--text)]'
               }`}
           >
             {isActive && (
-              <span className="absolute top-0 left-0 right-0 h-[3px] bg-[#1A6B3C]" />
+              <span className="absolute top-0 left-0 right-0 h-[3px] bg-[#27B18A]" />
             )}
             {m.icon}
             {m.label}

@@ -1,6 +1,8 @@
 import type { Ingredient, OperationalCost, PricingTier, ProcessingCost, DerivedProductOutput } from '@/types/hpp';
 import { roundToThousand } from '@/lib/format';
 
+const safeDiv = (val: number) => Math.max(val, 1);
+
 export interface PricingTiers {
   competitive: number; // Margin 20%
   standard: number;    // Margin 35%
@@ -40,23 +42,27 @@ export function calculateIngredientCost(
  * - ingredients: daftar bahan beserta yieldFactor masing-masing
  * - operationalCosts: biaya operasional; usage = porsi yang dibebankan (0–1)
  * - totalOutput: jumlah cup/porsi yang dihasilkan dari satu batch
+ * - targetSalesVolume: target penjualan bulanan untuk mengamortisasi OpEx
  */
 export function calculateTotalHPP(
   ingredients: Array<{ ingredient: Ingredient; yieldFactor?: number }>,
   operationalCosts: OperationalCost[],
-  totalOutput: number
+  totalOutput: number,
+  targetSalesVolume: number = totalOutput,
 ): number {
   if (totalOutput <= 0) throw new RangeError('totalOutput harus lebih dari 0');
+  if (targetSalesVolume <= 0) throw new RangeError('targetSalesVolume harus lebih dari 0');
 
   const totalIngredientCost = ingredients.reduce((sum, { ingredient, yieldFactor }) => {
     return sum + calculateIngredientCost(ingredient, yieldFactor);
   }, 0);
 
-  const totalOperationalCost = operationalCosts.reduce((sum, op) => {
+  // Monthly op cost allocated to this product, amortised over target sales volume
+  const totalOpCostAllocated = operationalCosts.reduce((sum, op) => {
     return sum + op.price * op.usage;
   }, 0);
 
-  return round((totalIngredientCost + totalOperationalCost) / totalOutput);
+  return round(totalIngredientCost / totalOutput + totalOpCostAllocated / safeDiv(targetSalesVolume));
 }
 
 const TIER_DEFINITIONS = [
@@ -67,7 +73,7 @@ const TIER_DEFINITIONS = [
 
 /**
  * Hitung 3 tier harga jual berdasarkan HPP.
- * Harga dibulatkan ke atas ke kelipatan 500 terdekat.
+ * Harga dibulatkan ke atas ke kelipatan 1000 terdekat.
  *
  * Formula: hargaJual = HPP / (1 - marginDecimal)
  */

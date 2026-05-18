@@ -154,22 +154,22 @@ describe('getPricingTiers', () => {
     expect(prem.margin).toBe(0.50);
   });
 
-  test('harga competitive dibulatkan ke kelipatan 500 terdekat ke atas', () => {
-    // 4.200 / 0.8 = 5.250 → ceilTo500 = 5.500
+  test('harga competitive dibulatkan ke kelipatan 1000 terdekat ke atas', () => {
+    // 4.200 / 0.8 = 5.250 → ceilTo1000 = 6.000
     const [comp] = getPricingTiers(hpp);
-    expect(comp.sellPrice).toBe(5_500);
+    expect(comp.sellPrice).toBe(6_000);
   });
 
-  test('harga standard dibulatkan ke kelipatan 500 terdekat ke atas', () => {
-    // 4.200 / 0.65 = 6.461.5... → ceilTo500 = 6.500
+  test('harga standard dibulatkan ke kelipatan 1000 terdekat ke atas', () => {
+    // 4.200 / 0.65 = 6.461.5... → ceilTo1000 = 7.000
     const [, std] = getPricingTiers(hpp);
-    expect(std.sellPrice).toBe(6_500);
+    expect(std.sellPrice).toBe(7_000);
   });
 
-  test('harga premium dibulatkan ke kelipatan 500 terdekat ke atas', () => {
-    // 4.200 / 0.5 = 8.400 → ceilTo500 = 8.500 (kelipatan 500 berikutnya)
+  test('harga premium dibulatkan ke kelipatan 1000 terdekat ke atas', () => {
+    // 4.200 / 0.5 = 8.400 → ceilTo1000 = 9.000
     const [, , prem] = getPricingTiers(hpp);
-    expect(prem.sellPrice).toBe(8_500);
+    expect(prem.sellPrice).toBe(9_000);
   });
 
   test('profit = sellPrice - hpp untuk setiap tier', () => {
@@ -178,8 +178,8 @@ describe('getPricingTiers', () => {
     });
   });
 
-  test('sellPrice yang sudah tepat kelipatan 500 tidak berubah', () => {
-    // hpp = 4.000 | premium: 4.000/0.5 = 8.000 → sudah kelipatan 500
+  test('sellPrice yang sudah tepat kelipatan 1000 tidak berubah', () => {
+    // hpp = 4.000 | premium: 4.000/0.5 = 8.000 → sudah kelipatan 1000
     const [, , prem] = getPricingTiers(4_000);
     expect(prem.sellPrice).toBe(8_000);
   });

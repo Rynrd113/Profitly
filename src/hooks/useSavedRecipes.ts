@@ -92,5 +92,13 @@ export function useSavedRecipes() {
     });
   };
 
-  return { recipes, save, remove, recomputeHPPForIngredient };
+  const patchRecipe = (id: string, patch: Partial<SavedRecipe>) => {
+    setRecipes(prev => {
+      const updated = prev.map(r => r.id === id ? { ...r, ...patch } : r);
+      saveToRecipeStorage(updated);
+      return updated;
+    });
+  };
+
+  return { recipes, save, remove, recomputeHPPForIngredient, patchRecipe };
 }

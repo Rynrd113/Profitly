@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { storageGet, storageSet } from '@/lib/storage';
+import { toast } from 'sonner';
 import type { SavedRawIngredient } from '@/types/hpp';
 
 const KEY = 'profitly-saved-raw-ingredients';
@@ -26,8 +27,17 @@ export function useSavedRawIngredients() {
       const merged = [...prev];
       for (const item of newItems) {
         const idx = merged.findIndex(x => x.name === item.name);
-        if (idx >= 0) {
-          const existing = merged[idx];
+        const idxCI = idx < 0
+          ? merged.findIndex(x => x.name.toLowerCase() === item.name.toLowerCase())
+          : -1;
+
+        const targetIdx = idx >= 0 ? idx : idxCI;
+
+        if (targetIdx >= 0) {
+          if (idxCI >= 0) {
+            toast.warning(`Bahan "${item.name}" sudah ada sebagai "${merged[idxCI].name}" — data diperbarui`);
+          }
+          const existing = merged[targetIdx];
           const priceChanged =
             existing.purchasePrice !== item.purchasePrice ||
             existing.purchaseVolume !== item.purchaseVolume;
@@ -37,7 +47,7 @@ export function useSavedRawIngredients() {
               history = [{ price: existing.purchasePrice, volume: existing.purchaseVolume, recordedAt: new Date().toISOString() }];
             history = [...history, { price: item.purchasePrice, volume: item.purchaseVolume, recordedAt: new Date().toISOString() }];
           }
-          merged[idx] = { ...item, priceHistory: history };
+          merged[targetIdx] = { ...existing, ...item, name: existing.name, priceHistory: history };
         } else {
           merged.push({
             ...item,

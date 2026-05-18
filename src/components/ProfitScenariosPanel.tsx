@@ -10,6 +10,7 @@ interface ProfitScenariosPanelProps {
   bep: BEPResult;
   fixedCost: number;
   targetUnits: number;
+  selectedSellPrice?: number;
 }
 
 interface Scenario {
@@ -53,36 +54,36 @@ function ProfitBadge({ profit }: { profit: number }) {
   }
   if (profit <= 1) {
     return (
-      <span className="tabular-nums font-semibold text-[#D97706]">
+      <span className="tabular-nums font-semibold text-[#27B18A]">
         Rp 0
       </span>
     );
   }
   return (
-    <span className="tabular-nums font-semibold text-[#1A6B3C]">
+    <span className="tabular-nums font-semibold text-[#27B18A]">
       +{formatRp(profit)}
     </span>
   );
 }
 
 export function ProfitScenariosPanel({
-  hpp, tiers, bep, fixedCost, targetUnits,
+  hpp, tiers, bep, fixedCost, targetUnits, selectedSellPrice,
 }: ProfitScenariosPanelProps) {
   if (targetUnits <= 0) return null;
 
-  const sellPrice = tiers[1]?.sellPrice ?? tiers[0]?.sellPrice ?? 0;
+  const sellPrice = selectedSellPrice ?? tiers[1]?.sellPrice ?? tiers[0]?.sellPrice ?? 0;
   if (!sellPrice) return null;
 
   const scenarios = buildScenarios(hpp, sellPrice, fixedCost, targetUnits, bep.bepUnit);
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E3DD] p-5 shadow-sm">
-      <span className="text-[10px] font-bold uppercase tracking-widest text-[#C4BFBA] block mb-1">
+    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
+      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)] block mb-1">
         4 Skenario Profit
       </span>
-      <p className="text-xs text-[#9CA3AF] mb-4">
+      <p className="text-xs text-[var(--text-3)] mb-4">
         Estimasi pada harga standar ·{' '}
-        <span className="font-medium text-[#1A1A18]">
+        <span className="font-medium text-[var(--text)]">
           target {targetUnits.toLocaleString('id-ID')} porsi/bulan
         </span>
       </p>
@@ -90,17 +91,17 @@ export function ProfitScenariosPanel({
       <div className="overflow-x-auto -mx-1">
         <table className="w-full text-xs min-w-[320px]">
           <thead>
-            <tr className="border-b border-[#F0EDE8]">
-              <th className="text-left pb-2 pr-2 text-[10px] font-bold uppercase tracking-wider text-[#C4BFBA]">
+            <tr className="border-b border-[var(--border-subtle)]">
+              <th className="text-left pb-2 pr-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)]">
                 Skenario
               </th>
-              <th className="text-right pb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-[#C4BFBA]">
+              <th className="text-right pb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)]">
                 Porsi
               </th>
-              <th className="text-right pb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-[#C4BFBA]">
+              <th className="text-right pb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)]">
                 Pendapatan
               </th>
-              <th className="text-right pb-2 pl-2 text-[10px] font-bold uppercase tracking-wider text-[#C4BFBA]">
+              <th className="text-right pb-2 pl-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)]">
                 Profit
               </th>
             </tr>
@@ -111,20 +112,20 @@ export function ProfitScenariosPanel({
               return (
                 <tr
                   key={s.label}
-                  className={`border-b border-[#F0EDE8] last:border-0 ${
-                    isHighlighted ? 'bg-[#F0F9F4]' : ''
+                  className={`border-b border-[var(--border-subtle)] last:border-0 ${
+                    isHighlighted ? 'bg-[var(--tint-amber)]' : ''
                   }`}
                 >
                   <td className="py-2.5 pr-2">
-                    <span className={`font-semibold ${isHighlighted ? 'text-[#1A6B3C]' : 'text-[#1A1A18]'}`}>
+                    <span className={`font-semibold ${isHighlighted ? 'text-[#27B18A]' : 'text-[var(--text)]'}`}>
                       {s.label}
                     </span>
-                    <span className="block text-[10px] text-[#9CA3AF]">{s.sublabel}</span>
+                    <span className="block text-[10px] text-[var(--text-3)]">{s.sublabel}</span>
                   </td>
-                  <td className="py-2.5 px-2 text-right tabular-nums text-[#6B7280]">
+                  <td className="py-2.5 px-2 text-right tabular-nums text-[var(--text-2)]">
                     {s.units.toLocaleString('id-ID')}
                   </td>
-                  <td className="py-2.5 px-2 text-right tabular-nums text-[#6B7280]">
+                  <td className="py-2.5 px-2 text-right tabular-nums text-[var(--text-2)]">
                     {formatRp(s.revenue)}
                   </td>
                   <td className="py-2.5 pl-2 text-right">
@@ -137,7 +138,7 @@ export function ProfitScenariosPanel({
         </table>
       </div>
 
-      <p className="text-[10px] text-[#C4BFBA] mt-3">
+      <p className="text-[10px] text-[var(--text-4)] mt-3">
         Profit = Pendapatan − (HPP × porsi) − biaya tetap
       </p>
     </div>

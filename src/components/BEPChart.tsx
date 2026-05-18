@@ -13,6 +13,7 @@ interface BEPChartProps {
   tiers: PricingTier[];
   bep: BEPResult;
   fixedCost: number;
+  selectedSellPrice?: number;
 }
 
 function buildChartData(fixedCost: number, hpp: number, sellPrice: number, bepUnit: number) {
@@ -40,8 +41,8 @@ const formatK = (v: number) => {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-[#E5E3DD] rounded-xl p-3 shadow-lg text-xs">
-      <p className="font-semibold text-[#1A1A18] mb-1.5">{label} porsi</p>
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 shadow-lg text-xs">
+      <p className="font-semibold text-[var(--text)] mb-1.5">{label} porsi</p>
       {payload.map((p: any) => (
         <p key={p.dataKey} style={{ color: p.color }} className="tabular-nums">
           {p.name}: {formatRp(p.value)}
@@ -51,60 +52,62 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-export function BEPChart({ hpp, tiers, bep, fixedCost }: BEPChartProps) {
-  const sellPrice = tiers[1]?.sellPrice ?? tiers[0]?.sellPrice ?? 0;
+export function BEPChart({ hpp, tiers, bep, fixedCost, selectedSellPrice }: BEPChartProps) {
+  const sellPrice = selectedSellPrice ?? tiers[1]?.sellPrice ?? tiers[0]?.sellPrice ?? 0;
   if (!sellPrice || !bep) return null;
 
   const { data, maxUnits } = buildChartData(fixedCost, hpp, sellPrice, bep.bepUnit);
   const bepX = Math.ceil(bep.bepUnit);
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E3DD] p-5 shadow-sm">
-      <span className="text-[10px] font-bold uppercase tracking-widest text-[#C4BFBA] block mb-1">
+    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
+      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)] block mb-1">
         Grafik BEP — Harga Standar
       </span>
-      <p className="text-xs text-[#9CA3AF] mb-4">
+      <p className="text-xs text-[var(--text-3)] mb-4">
         Titik perpotongan = mulai untung pada{' '}
-        <span className="font-semibold text-[#1A6B3C]">
+        <span className="font-semibold text-[#27B18A]">
           {bepX.toLocaleString('id-ID')} porsi
         </span>
+        {selectedSellPrice && <span className="ml-1 text-[10px] text-[var(--text-4)]">(harga dipilih)</span>}
       </p>
-      <ResponsiveContainer width="100%" height={220}>
+      <div className="h-[220px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#F0EDE8" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
           <XAxis
             dataKey="units"
             tickLine={false}
             axisLine={false}
-            tick={{ fontSize: 10, fill: '#9CA3AF' }}
+            tick={{ fontSize: 10, fill: 'var(--text-3)' }}
             tickFormatter={(v) => v === 0 ? '0' : formatK(v)}
             domain={[0, maxUnits]}
           />
           <YAxis
             tickLine={false}
             axisLine={false}
-            tick={{ fontSize: 10, fill: '#9CA3AF' }}
+            tick={{ fontSize: 10, fill: 'var(--text-3)' }}
             tickFormatter={formatK}
             width={40}
           />
           <Tooltip content={<CustomTooltip />} />
           <Legend
             formatter={(value) => (
-              <span className="text-[11px] text-[#6B7280]">{value}</span>
+              <span className="text-[11px] text-[var(--text-2)]">{value}</span>
             )}
             iconType="plainline"
             wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
           />
           <ReferenceLine
             x={bepX}
-            stroke="#1A6B3C"
+            stroke="#27B18A"
             strokeDasharray="4 3"
             strokeWidth={1.5}
             label={{
               value: `BEP ${bepX.toLocaleString('id-ID')}`,
               position: 'insideTopRight',
               fontSize: 10,
-              fill: '#1A6B3C',
+              fill: '#27B18A',
               dy: -2,
             }}
           />
@@ -121,13 +124,14 @@ export function BEPChart({ hpp, tiers, bep, fixedCost }: BEPChartProps) {
             type="monotone"
             dataKey="pendapatan"
             name="Estimasi Pendapatan"
-            stroke="#1A6B3C"
+            stroke="#27B18A"
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4 }}
           />
         </LineChart>
       </ResponsiveContainer>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Plus_Jakarta_Sans } from "next/font/google";
+import Script from "next/script";
 import { Toaster } from "sonner";
+import { OnlineStatus } from "@/components/OnlineStatus";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -31,21 +33,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id" className={`${bricolage.variable} ${jakarta.variable}`}>
+    <html lang="id" className={`${bricolage.variable} ${jakarta.variable}`} suppressHydrationWarning>
       <head>
-        <meta name="theme-color" content="#1A6B3C" />
+        <meta name="theme-color" content="#27B18A" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <script dangerouslySetInnerHTML={{ __html: `
+        <Script id="sw-register" strategy="afterInteractive">{`
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('/sw.js', { scope: '/' });
   });
 }
-        `.trim() }} />
+        `}</Script>
       </head>
       <body>
         {children}
-        <Toaster richColors position="top-right" />
+        <OnlineStatus />
+        <Toaster
+          theme="dark"
+          position="top-right"
+          toastOptions={{ style: { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' } }}
+        />
       </body>
     </html>
   );

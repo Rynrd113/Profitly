@@ -6,15 +6,15 @@ import type { PricingTier } from '@/types/hpp';
 export const TIER_META = {
   competitive: {
     label: 'Kompetitif', desc: 'Margin 20%',
-    color: '#6B7280', ring: '#E5E7EB', bg: '#F9FAFB', bar: '#9CA3AF',
+    color: 'var(--text-2)', ring: 'var(--border)', bar: 'var(--text-3)',
   },
   standard: {
     label: 'Standar', desc: 'Margin 35%',
-    color: '#1A6B3C', ring: '#BBF7D0', bg: '#F0FDF4', bar: '#1A6B3C',
+    color: '#27B18A', ring: '#065F46', bar: '#27B18A',
   },
   premium: {
     label: 'Premium', desc: 'Margin 50%',
-    color: '#92400E', ring: '#FDE68A', bg: '#FFFBEB', bar: '#D97706',
+    color: '#27B18A', ring: '#065F46', bar: '#27B18A',
   },
 } as const;
 
@@ -30,12 +30,14 @@ export function TextInput({
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className={`bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl px-3 py-2 text-sm
-        focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C]
-        transition-colors placeholder:text-[#C4BFBA] ${className}`}
+      className={`bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm
+        focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]
+        transition-colors placeholder:text-[var(--text-4)] ${className}`}
     />
   );
 }
+
+const _numFmt = new Intl.NumberFormat('id-ID');
 
 export function NumInput({
   value, onChange, placeholder, prefix, suffix, className = '',
@@ -43,32 +45,55 @@ export function NumInput({
   value: string; onChange: (v: string) => void;
   placeholder?: string; prefix?: string; suffix?: string; className?: string;
 }) {
+  const isRupiah = prefix === 'Rp';
+
+  const displayValue = (() => {
+    if (!isRupiah || value === '' || value === '-') return value;
+    const n = parseInt(value.replace(/\./g, ''), 10);
+    return isNaN(n) ? value : _numFmt.format(n);
+  })();
+
+  const displayPlaceholder = (() => {
+    if (!isRupiah || !placeholder) return placeholder;
+    const n = parseInt(placeholder, 10);
+    return isNaN(n) ? placeholder : _numFmt.format(n);
+  })();
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isRupiah) {
+      const stripped = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+      if (stripped === '') { onChange(''); return; }
+      const n = parseInt(stripped, 10);
+      onChange(isNaN(n) || n < 0 ? '0' : String(n));
+    } else {
+      const raw = e.target.value;
+      if (raw === '' || raw === '-') { onChange(raw); return; }
+      const n = parseFloat(raw);
+      onChange(!isNaN(n) && n < 0 ? '0' : raw);
+    }
+  };
+
   return (
     <div className={`relative flex items-center ${className}`}>
       {prefix && (
-        <span className="absolute left-2.5 text-xs text-[#C4BFBA] pointer-events-none select-none">
+        <span className="absolute left-2.5 text-xs text-[var(--text-4)] pointer-events-none select-none">
           {prefix}
         </span>
       )}
       <input
-        type="number"
-        min="0"
-        value={value}
-        onChange={e => {
-          const raw = e.target.value;
-          if (raw === '' || raw === '-') { onChange(raw); return; }
-          const n = parseFloat(raw);
-          onChange(!isNaN(n) && n < 0 ? '0' : raw);
-        }}
-        placeholder={placeholder}
-        inputMode="decimal"
-        className={`w-full bg-[#F8F7F2] border border-[#E5E3DD] rounded-xl text-sm text-right
-          focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]/20 focus:border-[#1A6B3C]
-          transition-colors placeholder:text-[#C4BFBA] py-2
+        type={isRupiah ? 'text' : 'number'}
+        min={isRupiah ? undefined : '0'}
+        value={displayValue}
+        onChange={handleChange}
+        placeholder={displayPlaceholder}
+        inputMode={isRupiah ? 'numeric' : 'decimal'}
+        className={`w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right
+          focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]
+          transition-colors placeholder:text-[var(--text-4)] py-2
           ${prefix ? 'pl-7' : 'pl-2'} ${suffix ? 'pr-7' : 'pr-2'}`}
       />
       {suffix && (
-        <span className="absolute right-2.5 text-xs text-[#C4BFBA] pointer-events-none select-none">
+        <span className="absolute right-2.5 text-xs text-[var(--text-4)] pointer-events-none select-none">
           {suffix}
         </span>
       )}
@@ -81,7 +106,7 @@ export function DeleteBtn({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center justify-center w-8 h-8 rounded-lg text-[#C4BFBA]
+      className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--text-4)]
         hover:text-red-400 hover:bg-red-50 transition-colors shrink-0"
     >
       <Trash2 size={14} />
@@ -94,8 +119,8 @@ export function AddRowBtn({ onClick, label }: { onClick: () => void; label: stri
     <button
       type="button"
       onClick={onClick}
-      className="mt-4 flex items-center gap-1.5 text-sm font-medium text-[#1A6B3C]
-        hover:text-[#15803D] transition-colors"
+      className="mt-4 flex items-center gap-1.5 text-sm font-medium text-[#27B18A]
+        hover:text-[#0E927A] transition-colors"
     >
       <Plus size={15} />
       {label}
@@ -106,76 +131,88 @@ export function AddRowBtn({ onClick, label }: { onClick: () => void; label: stri
 export function SectionHeader({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <div className="flex items-center gap-2 mb-4">
-      <span className="text-[#1A6B3C]">{icon}</span>
-      <h2 className="text-xs font-bold uppercase tracking-widest text-[#1A1A18]">{label}</h2>
+      <span className="text-[#27B18A]">{icon}</span>
+      <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--text)]">{label}</h2>
     </div>
   );
 }
 
 export function PricingCard({
-  tier, isHighlighted, batch,
+  tier, isHighlighted, isStarred, batch, onSelect,
 }: {
-  tier: PricingTier; isHighlighted: boolean; batch: number | null;
+  tier: PricingTier; isHighlighted: boolean; isStarred?: boolean; batch: number | null;
+  onSelect?: (price: number) => void;
 }) {
+  const starred = isStarred ?? isHighlighted;
   const m = TIER_META[tier.label];
-  const formatRpLocal = (n: number) => 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(n));
+  const fmt = (n: number) => 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(n));
+  const Tag = onSelect ? 'button' : 'div';
+
+  const cardStyle = isHighlighted
+    ? { background: 'linear-gradient(135deg,#3ED1A5,#0E927A)', borderColor: '#0E927A', boxShadow: '0 4px 20px rgba(14,146,122,0.28)' }
+    : { background: '#FDFDFD', borderColor: 'var(--border)', boxShadow: 'none' };
+  const txt   = isHighlighted ? '#FFFFFF' : '#1A1A1A';
+  const sub   = isHighlighted ? 'rgba(255,255,255,0.72)' : '#6B7280';
+  const divider = isHighlighted ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.05)';
+
   return (
-    <div
-      className="rounded-2xl p-4 border transition-shadow"
-      style={{
-        background: m.bg,
-        borderColor: isHighlighted ? m.ring : '#E5E3DD',
-        borderWidth: isHighlighted ? '1.5px' : '1px',
-        boxShadow: isHighlighted ? `0 0 0 3px ${m.ring}50` : 'none',
-      }}
+    <Tag
+      {...(onSelect ? { type: 'button' as const, onClick: () => onSelect(tier.sellPrice) } : {})}
+      className={`rounded-2xl p-4 border transition-all duration-300 text-left w-full${onSelect ? ' cursor-pointer hover:scale-[1.01] active:scale-95 active:shadow-inner' : ''}`}
+      style={cardStyle}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="pt-0.5">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-sm font-semibold" style={{ color: m.color }}>{m.label}</span>
-            {isHighlighted && (
-              <span className="inline-flex items-center gap-0.5 bg-[#D97706] text-white
+            <span className="text-sm font-semibold" style={{ color: isHighlighted ? '#FFFFFF' : m.color }}>{m.label}</span>
+            {starred && (
+              <span className="inline-flex items-center gap-0.5 bg-[#FBBF24] text-[#1A1A1A]
                 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                <Star size={8} fill="white" />
+                <Star size={8} fill="#1A1A1A" />
                 SWEET SPOT
               </span>
             )}
           </div>
-          <p className="text-[11px] mt-0.5" style={{ color: m.color + '99' }}>{m.desc}</p>
+          <p className="text-[11px] mt-0.5" style={{ color: sub }}>{m.desc}</p>
         </div>
         <div className="text-right shrink-0">
           <p className="text-2xl font-bold leading-none"
-            style={{ color: m.color, fontFamily: 'var(--font-bricolage, system-ui)', fontVariantNumeric: 'tabular-nums' }}>
-            {formatRpLocal(tier.sellPrice)}
+            style={{ color: txt, fontFamily: 'var(--font-bricolage, system-ui)', fontVariantNumeric: 'tabular-nums' }}>
+            {fmt(tier.sellPrice)}
           </p>
-          <p className="text-[11px] mt-1" style={{ color: m.color + '88' }}>
-            untung {formatRpLocal(tier.profit)} / cup
+          <p className="text-[11px] mt-1" style={{ color: sub }}>
+            untung {fmt(tier.profit)} / cup
           </p>
         </div>
       </div>
-      <div className="mt-3 h-1 rounded-full overflow-hidden bg-black/5">
-        <div className="h-full rounded-full" style={{ width: `${tier.margin * 100}%`, background: m.bar }} />
+      <div className="mt-3 h-1 rounded-full overflow-hidden" style={{ background: divider }}>
+        <div className="h-full rounded-full" style={{ width: `${tier.margin * 100}%`, background: isHighlighted ? 'rgba(255,255,255,0.55)' : m.bar }} />
       </div>
       {batch && (
-        <div className="mt-3 pt-3 border-t border-black/5 grid grid-cols-2 gap-2">
+        <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2" style={{ borderColor: divider }}>
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: m.color + '88' }}>
+            <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: sub }}>
               Omzet {batch} cup
             </p>
-            <p className="text-sm font-bold tabular-nums" style={{ color: m.color }}>
-              {formatRpLocal(tier.sellPrice * batch)}
+            <p className="text-sm font-bold tabular-nums" style={{ color: txt }}>
+              {fmt(tier.sellPrice * batch)}
             </p>
           </div>
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: m.color + '88' }}>
+            <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: sub }}>
               Profit {batch} cup
             </p>
-            <p className="text-sm font-bold tabular-nums" style={{ color: m.color }}>
-              {formatRpLocal(tier.profit * batch)}
+            <p className="text-sm font-bold tabular-nums" style={{ color: txt }}>
+              {fmt(tier.profit * batch)}
             </p>
           </div>
         </div>
       )}
-    </div>
+      {onSelect && (
+        <p className="mt-2 text-[10px] text-center" style={{ color: isHighlighted ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.32)' }}>
+          {isHighlighted ? 'Harga terpilih ✓' : 'Klik untuk memilih harga'}
+        </p>
+      )}
+    </Tag>
   );
 }

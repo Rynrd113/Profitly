@@ -268,7 +268,7 @@ function buildInvestments() {
   return [
     { id: uid(), name: 'Mesin Espresso La Marzocco', cost: '32000000' },
     { id: uid(), name: 'Grinder Mazzer + Alat Barista', cost: '9500000' },
-    { id: uid(), name: 'Renovasi & Interior Maelo', cost: '8500000' },
+    { id: uid(), name: 'Renovasi & Interior Profitly', cost: '8500000' },
   ];
 }
 
@@ -281,15 +281,22 @@ export default function SeedPage() {
   const runSeed = () => {
     setStatus('running');
     setTimeout(() => {
-      const records = buildSalesRecords();
-      storageSet('profitly-sales-records',        records);
+      const all = buildSalesRecords();
+      const archivedMonths = [2, 3, 4];
+      const archives = archivedMonths.map(mo => ({
+        closedAt: new Date(2026, mo, 1, 0, 0).toISOString(),
+        records: all.filter(r => new Date(r.timestamp).getMonth() + 1 === mo),
+      }));
+      const active = all.filter(r => new Date(r.timestamp).getMonth() + 1 === 5);
+      storageSet('profitly-shift-archives',        archives);
+      storageSet('profitly-sales-records',         active);
       storageSet('profitly-saved-recipes',         buildRecipes());
       storageSet('profitly-saved-raw-ingredients', buildRawIngredients());
       storageSet('profitly-stock-transactions',    buildStockTransactions());
       storageSet('profitly-customers',             buildCustomers());
       storageSet('profitly-investments',           buildInvestments());
       storageSet('profitly-monthly-opex',          7500000);
-      setCount(records.length);
+      setCount(all.length);
       setStatus('done');
     }, 50);
   };
@@ -309,17 +316,17 @@ export default function SeedPage() {
   return (
     <div style={s}>
       <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>Seed Data Dummy</h1>
-      <p style={{ fontSize: 13, color: '#78716C', marginBottom: 20, lineHeight: 1.6 }}>
+      <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20, lineHeight: 1.6 }}>
         Simulasi <strong>Feb–Mei 2026</strong> · 6 menu · 7 bahan baku · 25 pelanggan<br />
         Mei 4–10: spike +15% · BCG: STAR / PLOWHORSE / PUZZLE · Stok lifecycle 3–20 hari
       </p>
 
-      <div style={{ background:'#F8F7F2', border:'1px solid #E5E3DD', borderRadius:12, padding:16, marginBottom:20, fontSize:12, color:'#78716C' }}>
-        <strong style={{ color:'#1A1A18' }}>Menu Engineering (Mei):</strong><br />
+      <div style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:12, padding:16, marginBottom:20, fontSize:12, color:'var(--text-2)' }}>
+        <strong style={{ color:'var(--text)' }}>Menu Engineering (Mei):</strong><br />
         ⭐ STAR: Kopi Susu Aren (35% qty, margin 66%)<br />
         🐎 PLOWHORSE: Croissant Butter (25% qty, margin 40%)<br />
         🧩 PUZZLE: Matcha Croffle (6% qty, margin 70%)<br /><br />
-        <strong style={{ color:'#1A1A18' }}>Stok Lifecycle:</strong><br />
+        <strong style={{ color:'var(--text)' }}>Stok Lifecycle:</strong><br />
         ⚠ ~3 hari: Biji Kopi (168g), Tepung Terigu (760g), Teh Lemon (7pcs)<br />
         📦 ~10 hari: Susu UHT (5160ml)<br />
         ✓ ~14 hari: Mentega (1610g) · ~20 hari: Gula Aren (1120g)
@@ -330,7 +337,7 @@ export default function SeedPage() {
           onClick={runSeed}
           disabled={status === 'running'}
           style={{
-            background: status === 'running' ? '#9CA3AF' : '#1A6B3C',
+            background: status === 'running' ? 'var(--text-3)' : '#27B18A',
             color:'#fff', border:'none', borderRadius:12,
             padding:'10px 24px', fontSize:14, fontWeight:600, cursor:'pointer',
           }}
@@ -340,7 +347,7 @@ export default function SeedPage() {
         <button
           onClick={clearAll}
           style={{
-            background:'#FEF2F2', color:'#DC2626', border:'1px solid #FECACA',
+            background:'var(--tint-red)', color:'#DC2626', border:'1px solid #7F1D1D',
             borderRadius:12, padding:'10px 24px', fontSize:14, fontWeight:600, cursor:'pointer',
           }}
         >
@@ -349,11 +356,12 @@ export default function SeedPage() {
       </div>
 
       {status === 'done' && (
-        <div style={{ marginTop:20, padding:14, background:'#ECFDF5', border:'1px solid #BBF7D0', borderRadius:12 }}>
-          <p style={{ color:'#1A6B3C', fontWeight:700, margin:0 }}>
+        <div style={{ marginTop:20, padding:14, background:'var(--tint-amber)', border:'1px solid #065F46', borderRadius:12 }}>
+          <p style={{ color:'#27B18A', fontWeight:700, margin:0 }}>
             ✓ {count} transaksi diinjeksi · Feb–Mei 2026
           </p>
-          <p style={{ color:'#059669', fontSize:12, margin:'4px 0 0', lineHeight:1.5 }}>
+          <p style={{ color:'#27B18A', fontSize:12, margin:'4px 0 0', lineHeight:1.5 }}>
+            Feb/Mar/Apr → shift-archives · Mei → active records<br />
             Buka /dashboard, /pos, /calculator, /financial-health untuk melihat hasil simulasi.
           </p>
         </div>

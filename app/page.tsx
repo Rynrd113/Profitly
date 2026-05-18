@@ -6,7 +6,7 @@ import {
   Plus, Minus, ShoppingBag,
   CheckCircle2, RotateCcw, Receipt, AlertTriangle, Loader2,
   Users, UserPlus, Search, Gift, X, Trash2,
-  Archive, MessageCircle,
+  Archive, MessageCircle, Printer,
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { useSavedRecipes } from '@/hooks/useSavedRecipes';
@@ -16,6 +16,11 @@ import { useSalesRecords } from '@/hooks/useSalesRecords';
 import { getPricingTiers } from '@/lib/engine';
 import { parseNum, formatRp } from '@/lib/format';
 import { useCustomers } from '@/hooks/useCustomers';
+import { useInventoryStore } from '@/store/inventoryStore';
+import { useAuthStore } from '@/store/authStore';
+import { logActivity } from '@/lib/logger';
+import { printReceipt } from '@/lib/thermalPrinter';
+import { sendReceipt } from '@/lib/whatsapp';
 import { toast } from 'sonner';
 import type { SaleRecord, StockTransaction, StockTransactionItem, Customer } from '@/types/hpp';
 
@@ -35,9 +40,13 @@ const TIER_META: Record<TierKey, { label: string; margin: string; color: string;
 function SuccessScreen({
   record,
   onReset,
+  onPrint,
+  onWhatsApp,
 }: {
   record: SaleRecord;
   onReset: () => void;
+  onPrint: () => void;
+  onWhatsApp?: () => void;
 }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
@@ -108,16 +117,42 @@ function SuccessScreen({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onReset}
-          className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-3
-            bg-[#27B18A] text-white rounded-xl font-semibold text-sm
-            hover:bg-[#0E927A] transition-colors"
-        >
-          <RotateCcw size={15} />
-          Transaksi Baru
-        </button>
+        <div className="mt-6 space-y-2">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onPrint}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5
+                border border-[var(--border)] text-[var(--text-2)] rounded-xl font-semibold text-sm
+                hover:bg-[var(--surface-2)] transition-colors"
+            >
+              <Printer size={14} />
+              Cetak Struk
+            </button>
+            {onWhatsApp && (
+              <button
+                type="button"
+                onClick={onWhatsApp}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5
+                  border border-[#25D366]/40 text-[#25D366] rounded-xl font-semibold text-sm
+                  hover:bg-[#25D366]/10 transition-colors"
+              >
+                <MessageCircle size={14} />
+                Kirim WA
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onReset}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3
+              bg-[#27B18A] text-white rounded-xl font-semibold text-sm
+              hover:bg-[#0E927A] transition-colors"
+          >
+            <RotateCcw size={15} />
+            Transaksi Baru
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -132,6 +167,8 @@ export default function POSPage() {
   const { records, add: addSaleRecord, archiveShift } = useSalesRecords();
 
   const { customers, addCustomer, updateAfterOrder, deleteCustomer } = useCustomers();
+  const { reduceStock } = useInventoryStore();
+  const { userRole } = useAuthStore();
   const [view, setView] = useState<ViewTab>('pos');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
@@ -254,7 +291,11 @@ export default function POSPage() {
         unit: unit as 'gr' | 'ml' | 'pcs',
       })),
       ...(note.trim() ? { note: note.trim() } : {}),
-      ...(selectedCustomer ? { customerId: selectedCustomer.id } : {}),
+      ...(selectedCustomer ? {
+        customerId: selectedCustomer.id,
+        customerPhone: selectedCustomer.phone,
+        customerName: selectedCustomer.name,
+      } : {}),
       ...(isLoyaltyFree ? { loyaltyRedeemed: true } : {}),
       ...(discountAmount > 0 ? {
         discountType,
@@ -270,6 +311,17 @@ export default function POSPage() {
         items: txItems,
       });
     }
+
+    // Sync inventory via recipe-level ingredient mapping (ID-based)
+    const inventoryDeductions = cartLines.flatMap(({ recipe, qty }) =>
+      (recipe.inventoryIngredients ?? []).map(({ inventoryId, quantity }) => ({
+        id: inventoryId,
+        amount: quantity * qty,
+      }))
+    );
+    if (inventoryDeductions.length > 0) reduceStock(inventoryDeductions);
+
+    logActivity(`SALE:${record.id}`, userRole);
 
     setTimeout(() => {
       if (selectedCustomer) {
@@ -294,7 +346,14 @@ export default function POSPage() {
       >
         <Header />
         <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-          <SuccessScreen record={successRecord} onReset={() => setSuccessRecord(null)} />
+          <SuccessScreen
+            record={successRecord}
+            onReset={() => setSuccessRecord(null)}
+            onPrint={() => printReceipt(successRecord)}
+            onWhatsApp={successRecord.customerPhone
+              ? () => sendReceipt(successRecord.customerPhone!, successRecord)
+              : undefined}
+          />
         </main>
       </div>
     );
@@ -338,9 +397,9 @@ export default function POSPage() {
         ) : recipes.length === 0 ? (
           <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-12 shadow-sm text-center mt-4">
             <Receipt size={32} className="mx-auto text-[var(--text-4)] mb-3" />
-            <p className="text-sm font-medium text-[var(--text-2)]">Belum ada menu tersimpan</p>
+            <p className="text-sm font-medium text-[var(--text-2)]">Belum ada menu</p>
             <p className="text-xs text-[var(--text-4)] mt-1 mb-5">
-              Simpan resep di Kalkulator HPP terlebih dahulu.
+              Simpan resep dari Kalkulator HPP untuk mulai berjualan.
             </p>
             <Link
               href="/calculator"
@@ -616,7 +675,7 @@ export default function POSPage() {
                     rows={2}
                     value={note}
                     onChange={e => setNote(e.target.value)}
-                    placeholder="cth: meja 3, extra gula..."
+                    placeholder="Catatan"
                     className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm
                       resize-none focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20
                       focus:border-[#27B18A] placeholder:text-[var(--text-4)]"
@@ -904,7 +963,7 @@ function OrderPanel({
                 rows={2}
                 value={note}
                 onChange={e => onNoteChange(e.target.value)}
-                placeholder="cth: event catering, meja 3..."
+                placeholder="Catatan"
                 className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm
                   resize-none focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]
                   placeholder:text-[var(--text-4)] text-[var(--text)]"

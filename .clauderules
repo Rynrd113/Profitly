@@ -1,0 +1,7 @@
+# ATURAN EFISIENSI KODE & LIMIT
+- Selalu hapus komentar kode (comments) dan console.log yang tidak perlu setelah selesai koding.
+- Lakukan refactor untuk performa tanpa menambah fitur baru kecuali diminta secara eksplisit.
+- Berikan output kode yang padat (minified-style logic) tapi tetap terbaca.
+- Minimalkan penjelasan verbal; langsung ke poin perubahan file.
+- Jangan scan file gambar, dokumen, atau folder build (selalu patuhi .claudeignore).
+- Gunakan variabel yang singkat namun deskriptif untuk menghemat token.
