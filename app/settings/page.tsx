@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Download, Upload, Trash2, Shield, Info, Database, PackagePlus, Loader2, UserCog, Lock, Unlock, FileSpreadsheet } from 'lucide-react';
+import { Download, Upload, Trash2, Shield, Info, Database, PackagePlus, Loader2, UserCog, Lock, Unlock, FileSpreadsheet, Store } from 'lucide-react';
+import { useSettingsStore } from '@/store/settingsStore';
 import { toast } from 'sonner';
 import { Navbar } from '@/components/Navbar';
 import { AdminGuard } from '@/components/AdminGuard';
@@ -19,6 +20,21 @@ export default function SettingsPage() {
   const csvRef     = useRef<HTMLInputElement>(null);
   const [csvImporting, setCsvImporting] = useState(false);
   const [clearConfirm, setClearConfirm] = useState(false);
+
+  const { profile, setProfile } = useSettingsStore();
+  const [bizName,    setBizName]    = useState('');
+  const [bizTagline, setBizTagline] = useState('');
+  const [bizAddress, setBizAddress] = useState('');
+  const [bizPhone,   setBizPhone]   = useState('');
+  const [bizFooter,  setBizFooter]  = useState('');
+  const [bizSaved,   setBizSaved]   = useState(false);
+  useEffect(() => {
+    setBizName(profile.name);
+    setBizTagline(profile.tagline);
+    setBizAddress(profile.address);
+    setBizPhone(profile.phone ?? '');
+    setBizFooter(profile.footer);
+  }, [profile.name, profile.tagline, profile.address, profile.phone, profile.footer]);
 
   const { switchToKasir, setPin } = useRole();
   const [showModeSection, setShowModeSection] = useState(false);
@@ -179,6 +195,108 @@ export default function SettingsPage() {
             Pengaturan
           </h1>
           <p className="text-sm text-[var(--text-3)] mt-0.5">Kelola data dan keamanan aplikasi</p>
+        </div>
+
+        {/* ── Profil Bisnis ── */}
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Store size={14} className="text-[#27B18A]" />
+            <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--text-4)]">
+              Profil Bisnis
+            </h2>
+          </div>
+          <p className="text-xs text-[var(--text-3)] mb-5">
+            Nama dan info kontak yang tampil di nota cetak dan dashboard.
+          </p>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block mb-1.5">
+                  Nama Bisnis
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Kopi Mantap"
+                  value={bizName}
+                  onChange={e => setBizName(e.target.value)}
+                  className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm
+                    focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A] text-[var(--text)]"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block mb-1.5">
+                  Tagline (opsional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Kopi Terbaik di Kota"
+                  value={bizTagline}
+                  onChange={e => setBizTagline(e.target.value)}
+                  className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm
+                    focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A] text-[var(--text)]"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block mb-1.5">
+                  Alamat
+                </label>
+                <input
+                  type="text"
+                  placeholder="Jl. Contoh No. 1, Kota"
+                  value={bizAddress}
+                  onChange={e => setBizAddress(e.target.value)}
+                  className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm
+                    focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A] text-[var(--text)]"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block mb-1.5">
+                  No. Telepon
+                </label>
+                <input
+                  type="tel"
+                  placeholder="08xx-xxxx-xxxx"
+                  value={bizPhone}
+                  onChange={e => setBizPhone(e.target.value)}
+                  className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm
+                    focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A] text-[var(--text)]"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block mb-1.5">
+                Pesan Footer Nota
+              </label>
+              <input
+                type="text"
+                placeholder="Terima kasih atas kunjungan Anda!"
+                value={bizFooter}
+                onChange={e => setBizFooter(e.target.value)}
+                className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm
+                  focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A] text-[var(--text)]"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setProfile({ name: bizName || 'ProfitLy', tagline: bizTagline, address: bizAddress, phone: bizPhone, footer: bizFooter || 'Terima kasih atas kunjungan Anda!' });
+                  setBizSaved(true);
+                  setTimeout(() => setBizSaved(false), 2000);
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#27B18A] text-white
+                  text-sm font-semibold rounded-xl hover:bg-[#0E927A] transition-colors"
+              >
+                <Store size={14} />
+                Simpan Profil
+              </button>
+              {bizSaved && (
+                <span className="text-xs font-semibold text-[#27B18A]">Tersimpan!</span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* ── Penerimaan Barang ── */}

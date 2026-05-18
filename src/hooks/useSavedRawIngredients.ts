@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { storageGet, storageSet } from '@/lib/storage';
 import { toast } from 'sonner';
 import type { SavedRawIngredient } from '@/types/hpp';
+import { useInventoryLogStore } from '@/store/inventoryLogStore';
 
 const KEY = 'profitly-saved-raw-ingredients';
 
@@ -77,6 +78,7 @@ export function useSavedRawIngredients() {
   };
 
   const deductStock = (deductions: { name: string; amount: number }[]) => {
+    const addLog = useInventoryLogStore.getState().addLog;
     setIngredients(prev => {
       const updated = prev.map(x => {
         const hit = deductions.find(d => d.name === x.name);
@@ -86,9 +88,13 @@ export function useSavedRawIngredients() {
       saveToRawStorage(updated);
       return updated;
     });
+    for (const d of deductions) {
+      addLog({ ingredientId: d.name, type: 'OUT', amount: d.amount, reason: 'Penjualan POS' });
+    }
   };
 
   const restoreStock = (restorations: { name: string; amount: number }[]) => {
+    const addLog = useInventoryLogStore.getState().addLog;
     setIngredients(prev => {
       const updated = prev.map(x => {
         const hit = restorations.find(r => r.name === x.name);
@@ -98,6 +104,9 @@ export function useSavedRawIngredients() {
       saveToRawStorage(updated);
       return updated;
     });
+    for (const r of restorations) {
+      addLog({ ingredientId: r.name, type: 'IN', amount: r.amount, reason: 'Pembatalan Transaksi' });
+    }
   };
 
   const receiveStock = (name: string, qtyIn: number, newPrice: number, newVolume: number): boolean => {
@@ -124,6 +133,13 @@ export function useSavedRawIngredients() {
       });
       saveToRawStorage(updated);
       return updated;
+    });
+
+    useInventoryLogStore.getState().addLog({
+      ingredientId: name,
+      type: 'IN',
+      amount: qtyIn,
+      reason: 'Restock Supplier',
     });
 
     return priceChanged;

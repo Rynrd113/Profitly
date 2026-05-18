@@ -169,7 +169,7 @@ export default function FinancialHealthPage() {
       periodLabel,
       omzet: currentMonthStats.omzet,
       grossProfit: currentMonthStats.grossProfit,
-      netProfit: currentMonthStats.grossProfit - opex,
+      netProfit: currentMonthStats.grossProfit - totalExpenses,
       txCount: currentMonthStats.txCount,
       totalItemsSold: currentMonthStats.totalItemsSold,
       opex,
@@ -483,6 +483,7 @@ export default function FinancialHealthPage() {
               />
               <input
                 type="number"
+                min="0"
                 placeholder="Jumlah (Rp)"
                 value={expAmount}
                 onChange={e => setExpAmount(e.target.value)}

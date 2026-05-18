@@ -19,9 +19,11 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { useCustomerStore } from '@/store/customerStore';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { useAuthStore } from '@/store/authStore';
+import { motion } from 'framer-motion';
 import { logActivity } from '@/lib/logger';
-import { printReceipt } from '@/lib/thermalPrinter';
+import { printReceipt } from '@/lib/printer';
 import { sendReceipt } from '@/lib/whatsapp';
+import { useSettingsStore } from '@/store/settingsStore';
 import { toast } from 'sonner';
 import type { SaleRecord, StockTransaction, StockTransactionItem, Customer, SavedRecipe } from '@/types/hpp';
 
@@ -171,6 +173,7 @@ export default function POSPage() {
   const { upsertCustomer } = useCustomerStore();
   const { reduceStock } = useInventoryStore();
   const { userRole } = useAuthStore();
+  const { profile: businessProfile } = useSettingsStore();
   const [view, setView] = useState<ViewTab>('pos');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
@@ -359,7 +362,7 @@ export default function POSPage() {
           <SuccessScreen
             record={successRecord}
             onReset={() => setSuccessRecord(null)}
-            onPrint={() => printReceipt(successRecord)}
+            onPrint={() => printReceipt(successRecord, businessProfile)}
             onWhatsApp={successRecord.customerPhone
               ? () => sendReceipt(successRecord.customerPhone!, successRecord)
               : undefined}
@@ -528,8 +531,9 @@ export default function POSPage() {
 
                       {/* Qty counter */}
                       <div className="mt-auto flex items-center justify-between gap-2" onClick={e => e.stopPropagation()}>
-                        <button
+                        <motion.button
                           type="button"
+                          whileTap={{ scale: 0.88 }}
                           onClick={() => setQty(recipe.id, -1)}
                           disabled={qty === 0}
                           className="w-11 h-11 rounded-xl border border-[var(--border)] flex items-center justify-center
@@ -537,7 +541,7 @@ export default function POSPage() {
                             transition-colors"
                         >
                           <Minus size={15} />
-                        </button>
+                        </motion.button>
 
                         <span
                           className="text-lg font-bold tabular-nums w-8 text-center"
@@ -549,14 +553,15 @@ export default function POSPage() {
                           {qty}
                         </span>
 
-                        <button
+                        <motion.button
                           type="button"
+                          whileTap={{ scale: 0.88 }}
                           onClick={() => setQty(recipe.id, 1)}
                           className="w-11 h-11 rounded-xl bg-[#27B18A] flex items-center justify-center
                             text-white hover:bg-[#0E927A] transition-colors"
                         >
                           <Plus size={15} />
-                        </button>
+                        </motion.button>
                       </div>
                     </div>
                   );
@@ -796,8 +801,9 @@ export default function POSPage() {
                     </p>
                   )}
                 </button>
-                <button
+                <motion.button
                   type="button"
+                  whileTap={{ scale: 0.96 }}
                   onClick={handleCheckout}
                   disabled={isProcessing}
                   className="inline-flex items-center gap-2 bg-[#27B18A] text-white px-6 py-3
@@ -806,7 +812,7 @@ export default function POSPage() {
                 >
                   {isProcessing ? <Loader2 size={15} className="animate-spin" /> : <ShoppingBag size={15} />}
                   Selesaikan
-                </button>
+                </motion.button>
               </div>
             </div>
           </div>

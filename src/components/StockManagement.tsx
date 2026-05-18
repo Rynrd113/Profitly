@@ -145,6 +145,14 @@ export function StockManagement({
   onRestock,
 }: Props) {
   const [restockModal, setRestockModal] = useState(false);
+
+  useEffect(() => {
+    if (!restockModal) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setRestockModal(false); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [restockModal]);
+
   const [rstName, setRstName] = useState('');
   const [rstQty, setRstQty] = useState('');
   const [rstPrice, setRstPrice] = useState('');

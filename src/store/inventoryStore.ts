@@ -1,6 +1,7 @@
 'use client';
 
 import { useIngredientStore } from '@/store/ingredientStore';
+import { useInventoryLogStore } from '@/store/inventoryLogStore';
 import { toast } from 'sonner';
 
 export function useInventoryStore() {
@@ -10,8 +11,10 @@ export function useInventoryStore() {
     baseDeduct(items.map(({ id, amount }) => ({ name: id, amount })));
 
     const after = useIngredientStore.getState().ingredients;
-    for (const { id } of items) {
+    const addLog = useInventoryLogStore.getState().addLog;
+    for (const { id, amount } of items) {
       const ing = after.find(x => x.name === id);
+      addLog({ ingredientId: id, type: 'OUT', amount, reason: 'Penjualan POS' });
       if (
         ing &&
         ing.currentStock !== undefined &&

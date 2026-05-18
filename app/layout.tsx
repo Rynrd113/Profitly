@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Plus_Jakarta_Sans } from "next/font/google";
 import Script from "next/script";
 import { Toaster } from "sonner";
 import { OnlineStatus } from "@/components/OnlineStatus";
+import { PageTransition } from "@/components/PageTransition";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -46,7 +47,7 @@ if ('serviceWorker' in navigator) {
         `}</Script>
       </head>
       <body>
-        {children}
+        <PageTransition>{children}</PageTransition>
         <OnlineStatus />
         <Toaster
           theme="dark"

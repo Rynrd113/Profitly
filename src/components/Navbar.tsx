@@ -58,6 +58,13 @@ export function Navbar({ active }: { active: ActivePage }) {
     return () => document.removeEventListener('mousedown', handler);
   }, [dropdownOpen]);
 
+  useEffect(() => {
+    if (pendingRoute === null) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') handleModalClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [pendingRoute]);
+
   const handleAdminNav = (e: React.MouseEvent, href: string) => {
     if (!ADMIN_ROUTES.has(href)) return;
     if (isAuthenticated) return;
@@ -93,7 +100,7 @@ export function Navbar({ active }: { active: ActivePage }) {
 
   return (
     <>
-      <header className="sticky top-0 z-20 bg-[var(--bg)]/95 backdrop-blur-md border-b border-[var(--border)]">
+      <header className="sticky top-0 z-20 glass border-b border-[var(--border)]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <div className="w-7 h-7 rounded-lg bg-[#27B18A] flex items-center justify-center">
