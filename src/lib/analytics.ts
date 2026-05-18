@@ -29,6 +29,52 @@ export function getDailyRevenueLast7Days(records: SaleRecord[]): DailyRevenue[] 
   });
 }
 
+export interface HourlyStat {
+  hour: number;
+  label: string;
+  txCount: number;
+  revenue: number;
+}
+
+export interface TopSellingItem {
+  name: string;
+  totalQty: number;
+  totalRevenue: number;
+}
+
+export function getPeakHours(records: SaleRecord[]): HourlyStat[] {
+  const map = new Map<number, { txCount: number; revenue: number }>();
+  for (const r of records) {
+    if (r.cancelled) continue;
+    const h = new Date(r.timestamp).getHours();
+    const prev = map.get(h) ?? { txCount: 0, revenue: 0 };
+    map.set(h, { txCount: prev.txCount + 1, revenue: prev.revenue + r.totalRevenue });
+  }
+  return Array.from({ length: 24 }, (_, h) => ({
+    hour: h,
+    label: `${String(h).padStart(2, '0')}:00`,
+    ...(map.get(h) ?? { txCount: 0, revenue: 0 }),
+  }));
+}
+
+export function getTopSelling(records: SaleRecord[], n = 5): TopSellingItem[] {
+  const map = new Map<string, { totalQty: number; totalRevenue: number }>();
+  for (const r of records) {
+    if (r.cancelled) continue;
+    for (const item of r.items) {
+      const prev = map.get(item.recipeName) ?? { totalQty: 0, totalRevenue: 0 };
+      map.set(item.recipeName, {
+        totalQty:     prev.totalQty     + item.qty,
+        totalRevenue: prev.totalRevenue + item.subtotal,
+      });
+    }
+  }
+  return Array.from(map.entries())
+    .map(([name, v]) => ({ name, ...v }))
+    .sort((a, b) => b.totalQty - a.totalQty)
+    .slice(0, n);
+}
+
 export function getTopMenusByMargin(records: SaleRecord[], n = 3): MenuMarginStat[] {
   const map = new Map<string, { totalRevenue: number; totalCost: number; totalQty: number }>();
   for (const r of records) {

@@ -2,80 +2,24 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import {
-  TrendingUp, TrendingDown, Plus, Trash2, Target,
-  CalendarCheck, Wallet, AlertTriangle, CheckCircle,
-  Clock, BarChart3, Edit3, Check, FileDown, Star,
-  ChevronLeft, ChevronRight,
+  BarChart3, FileDown, Star,
+  ChevronLeft, ChevronRight, Plus, Trash2,
 } from 'lucide-react';
-import {
-  AreaChart, Area, LineChart, Line, XAxis, YAxis,
-  CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
-} from 'recharts';
 import { Navbar } from '@/components/Navbar';
 import { AdminGuard } from '@/components/AdminGuard';
 import { MenuEngineering } from '@/components/analytics/MenuEngineering';
 import { MenuTable } from '@/components/analytics/MenuTable';
+import { InvestmentSection } from '@/components/InvestmentSection';
+import { useFinanceStore } from '@/store/financeStore';
+import { FIXED_CATEGORIES, VARIABLE_CATEGORIES } from '@/types/finance';
 import { useSalesRecords } from '@/hooks/useSalesRecords';
 import { useSavedRecipes } from '@/hooks/useSavedRecipes';
 import { useSavedRawIngredients } from '@/hooks/useSavedRawIngredients';
-import { storageGet, storageSet } from '@/lib/storage';
-import { parseNum, formatRp, uid } from '@/lib/format';
+import { storageGet } from '@/lib/storage';
+import { formatRp } from '@/lib/format';
 import { getPricingTiers } from '@/lib/engine';
 import { generateMonthlyReport } from '@/lib/generateReport';
 import { toast } from 'sonner';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface InvestmentItem {
-  id: string;
-  name: string;
-  cost: string;
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatYAxis(v: number) {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}jt`;
-  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}k`;
-  return String(v);
-}
-
-function monthLabel(yearMonth: string) {
-  const [y, m] = yearMonth.split('-');
-  return new Date(Number(y), Number(m) - 1).toLocaleDateString('id-ID', {
-    month: 'short', year: '2-digit',
-  });
-}
-
-function addMonths(date: Date, n: number) {
-  const d = new Date(date);
-  d.setMonth(d.getMonth() + n);
-  return d;
-}
-
-// ─── Chart tooltip ────────────────────────────────────────────────────────────
-
-function ChartTooltip({ active, payload, label }: {
-  active?: boolean;
-  payload?: { name: string; value: number; color: string }[];
-  label?: string;
-}) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2.5 shadow-lg text-xs">
-      <p className="font-bold text-[var(--text-2)] mb-1.5">{label}</p>
-      {payload.map(p => (
-        <div key={p.name} className="flex items-center gap-2 mb-1 last:mb-0">
-          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
-          <span className="text-[var(--text-2)]">{p.name}</span>
-          <span className="font-semibold text-[var(--text)] ml-auto tabular-nums pl-4">
-            {formatRp(p.value)}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
@@ -83,58 +27,22 @@ export default function FinancialHealthPage() {
   const { allRecords: records } = useSalesRecords();
   const { recipes } = useSavedRecipes();
   const { ingredients: rawIngredients } = useSavedRawIngredients();
+  const { expenses, addExpense, deleteExpense } = useFinanceStore();
 
-  const [items, setItems] = useState<InvestmentItem[]>([]);
+  const [expType,     setExpType]     = useState<'fixed' | 'variable'>('fixed');
+  const [expCategory, setExpCategory] = useState<string>(FIXED_CATEGORIES[0]);
+  const [expAmount,   setExpAmount]   = useState('');
+  const [expDate,     setExpDate]     = useState('');
+  const [expNote,     setExpNote]     = useState('');
+
   const [opex, setOpex] = useState(0);
-  const [editingOpex, setEditingOpex] = useState(false);
-  const [opexInput, setOpexInput] = useState('');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const saved = storageGet<InvestmentItem[]>('profitly-investments');
-    if (saved?.length) setItems(saved);
-    else setItems([{ id: uid(), name: '', cost: '' }]);
-
     const o = storageGet<number>('profitly-monthly-opex');
-    if (o !== null) { setOpex(o); setOpexInput(String(o)); }
-
+    if (o !== null) setOpex(o);
     setMounted(true);
   }, []);
-
-  // ── Investment CRUD ──────────────────────────────────────────────────────
-
-  const updateItem = (id: string, field: 'name' | 'cost', value: string) => {
-    setItems(prev => {
-      const next = prev.map(it => it.id === id ? { ...it, [field]: value } : it);
-      storageSet('profitly-investments', next);
-      return next;
-    });
-  };
-
-  const addItem = () => {
-    setItems(prev => {
-      const next = [...prev, { id: uid(), name: '', cost: '' }];
-      storageSet('profitly-investments', next);
-      return next;
-    });
-  };
-
-  const removeItem = (id: string) => {
-    setItems(prev => {
-      const next = prev.filter(it => it.id !== id);
-      storageSet('profitly-investments', next.length ? next : [{ id: uid(), name: '', cost: '' }]);
-      return next.length ? next : [{ id: uid(), name: '', cost: '' }];
-    });
-  };
-
-  const saveOpex = () => {
-    const v = parseNum(opexInput);
-    if (v < 0) { toast.error('Biaya operasional tidak bisa negatif'); return; }
-    setOpex(v);
-    storageSet('profitly-monthly-opex', v);
-    setEditingOpex(false);
-    toast.success('Biaya operasional disimpan');
-  };
 
   // ── Derived calculations ─────────────────────────────────────────────────
 
@@ -163,123 +71,6 @@ export default function FinancialHealthPage() {
   );
 
   useEffect(() => { setRecapPage(0); }, [filteredRecords]);
-
-  const totalInvestment = useMemo(
-    () => items.reduce((s, it) => s + parseNum(it.cost), 0),
-    [items],
-  );
-
-  const monthlyData = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const r of filteredRecords) {
-      if (r.cancelled) continue;
-      const d = new Date(r.timestamp);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      map.set(key, (map.get(key) ?? 0) + r.grossProfit);
-    }
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([ym, gross]) => ({
-        ym,
-        label: monthLabel(ym),
-        grossProfit: gross,
-        netProfit: gross - opex,
-      }));
-  }, [filteredRecords, opex]);
-
-  const avgMonthlyNet = useMemo(() => {
-    if (monthlyData.length === 0) return 0;
-    const sum = monthlyData.reduce((s, m) => s + m.netProfit, 0);
-    return sum / monthlyData.length;
-  }, [monthlyData]);
-
-  const cumulativeData = useMemo(() => {
-    let cum = 0;
-    return monthlyData.map(m => {
-      cum += m.netProfit;
-      return { ...m, cumulative: cum };
-    });
-  }, [monthlyData]);
-
-  const currentCumulative = cumulativeData.at(-1)?.cumulative ?? 0;
-
-  const paybackMonths = useMemo(() => {
-    if (avgMonthlyNet <= 0 || totalInvestment <= 0) return null;
-    return Math.ceil(totalInvestment / avgMonthlyNet);
-  }, [totalInvestment, avgMonthlyNet]);
-
-  // Find which month (actual or projected) hits the investment line
-  const { paybackReached, paybackLabel, projectedChartData } = useMemo(() => {
-    if (totalInvestment <= 0 || avgMonthlyNet <= 0) {
-      return { paybackReached: false, paybackLabel: null, projectedChartData: cumulativeData };
-    }
-
-    // Check if already reached in actual data
-    const hitMonth = cumulativeData.find(m => m.cumulative >= totalInvestment);
-    if (hitMonth) {
-      return {
-        paybackReached: true,
-        paybackLabel: hitMonth.label,
-        projectedChartData: cumulativeData,
-      };
-    }
-
-    // Project forward from last known month
-    const lastDate = monthlyData.length > 0
-      ? (() => { const [y, m] = monthlyData.at(-1)!.ym.split('-'); return new Date(Number(y), Number(m) - 1); })()
-      : new Date();
-
-    const remainingMonths = Math.ceil((totalInvestment - currentCumulative) / avgMonthlyNet);
-    const maxProject = Math.min(remainingMonths + 1, 36);
-
-    let cum = currentCumulative;
-    const projected = [...cumulativeData];
-    for (let i = 1; i <= maxProject; i++) {
-      cum += avgMonthlyNet;
-      const d = addMonths(lastDate, i);
-      const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      projected.push({
-        ym,
-        label: monthLabel(ym),
-        grossProfit: avgMonthlyNet + opex,
-        netProfit: avgMonthlyNet,
-        cumulative: cum,
-        isProjected: true,
-      } as typeof projected[0] & { isProjected: boolean });
-    }
-
-    const targetDate = addMonths(lastDate, remainingMonths);
-    const lbl = targetDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-
-    return { paybackReached: false, paybackLabel: lbl, projectedChartData: projected };
-  }, [cumulativeData, totalInvestment, avgMonthlyNet, currentCumulative, monthlyData, opex]);
-
-  const pct = totalInvestment > 0
-    ? Math.min(1, currentCumulative / totalInvestment)
-    : 0;
-
-  const cashFlowForecast = useMemo(() => {
-    const anchor = new Date(endDate + 'T23:59:59');
-    const cutoff7d = new Date(anchor.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const last7 = filteredRecords.filter(r => !r.cancelled && new Date(r.timestamp) >= cutoff7d);
-    const dailyAvgRevenue = last7.reduce((s, r) => s + r.totalRevenue, 0) / 7;
-    const dailyAvgProfit  = last7.reduce((s, r) => s + r.grossProfit,  0) / 7;
-    const active = filteredRecords.filter(r => !r.cancelled);
-    const mtdRevenue = active.reduce((s, r) => s + r.totalRevenue, 0);
-    const mtdProfit  = active.reduce((s, r) => s + r.grossProfit,  0);
-    const daysInMonth   = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate();
-    const daysRemaining = daysInMonth - anchor.getDate();
-    return {
-      hasData: last7.length > 0,
-      dailyAvgRevenue,
-      dailyAvgProfit,
-      mtdRevenue,
-      mtdProfit,
-      daysRemaining,
-      forecastRevenue: mtdRevenue + dailyAvgRevenue * daysRemaining,
-      forecastProfit:  mtdProfit  + dailyAvgProfit  * daysRemaining,
-    };
-  }, [filteredRecords, endDate]);
 
   const foodCostItems = useMemo(() =>
     recipes
@@ -319,6 +110,16 @@ export default function FinancialHealthPage() {
     const totalItemsSold = mtd.reduce((s, r) => s + r.items.reduce((a, it) => a + it.qty, 0), 0);
     return { omzet, grossProfit, txCount: mtd.length, totalItemsSold };
   }, [filteredRecords]);
+
+  const totalExpenses = useMemo(() => {
+    const s = new Date(startDate);
+    const e = new Date(endDate + 'T23:59:59');
+    return expenses
+      .filter(ex => { const d = new Date(ex.date); return d >= s && d <= e; })
+      .reduce((sum, ex) => sum + ex.amount, 0);
+  }, [expenses, startDate, endDate]);
+
+  const netProfit = currentMonthStats.grossProfit - totalExpenses;
 
   const menuEngineeringData = useMemo(() => {
     const qtyMap = new Map<string, number>();
@@ -617,519 +418,165 @@ export default function FinancialHealthPage() {
           );
         })()}
 
-        {/* ── Investment inputs ── */}
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Wallet size={14} className="text-[#27B18A]" />
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--text-4)]">
-              Investasi Awal
-            </h2>
-          </div>
-
-          <div className="space-y-2.5">
-            {items.map((item, idx) => (
-              <div key={item.id} className="flex items-center gap-2">
-                <span className="text-[11px] text-[var(--text-4)] w-5 text-right shrink-0">
-                  {idx + 1}
-                </span>
-                <input
-                  type="text"
-                  value={item.name}
-                  onChange={e => updateItem(item.id, 'name', e.target.value)}
-                  placeholder="Nama Item"
-                  className="flex-1 bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2
-                    text-sm focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20
-                    focus:border-[#27B18A] placeholder:text-[var(--text-4)]"
-                />
-                <div className="relative w-40 shrink-0">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-4)]">
-                    Rp
-                  </span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={item.cost}
-                    onChange={e => {
-                      const n = parseFloat(e.target.value);
-                      if (!isNaN(n) && n < 0) { toast.error('Nilai investasi tidak bisa negatif'); return; }
-                      updateItem(item.id, 'cost', e.target.value === '' ? '' : e.target.value);
-                    }}
-                    placeholder="0"
-                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl pl-8 pr-3
-                      py-2 text-sm text-right focus:outline-none focus:ring-2
-                      focus:ring-[#27B18A]/20 focus:border-[#27B18A] placeholder:text-[var(--text-4)]"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeItem(item.id)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-4)]
-                    hover:text-red-400 hover:bg-red-50 transition-colors shrink-0"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={addItem}
-            className="mt-4 flex items-center gap-1.5 text-sm font-medium text-[#27B18A]
-              hover:text-[#0E927A] transition-colors"
-          >
-            <Plus size={15} />
-            Tambah item investasi
-          </button>
-
-          {/* Total */}
-          {totalInvestment > 0 && (
-            <div className="mt-4 pt-4 border-t border-[var(--border-subtle)] flex items-center justify-between">
-              <span className="text-sm text-[var(--text-2)]">Total Investasi</span>
-              <span
-                className="text-xl font-bold text-[var(--text)] tabular-nums"
-                style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}
-              >
-                {formatRp(totalInvestment)}
-              </span>
+        {/* ── Net Profit Summary ── */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'Gross Profit', value: currentMonthStats.grossProfit, color: '#27B18A' },
+            { label: 'Total Pengeluaran', value: totalExpenses, color: '#F59E0B' },
+            { label: 'Net Profit', value: netProfit, color: netProfit >= 0 ? '#27B18A' : '#DC2626' },
+          ].map(card => (
+            <div key={card.label} className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm px-4 py-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)] mb-1">{card.label}</p>
+              <p className="text-base font-bold tabular-nums" style={{ color: card.color }}>
+                {formatRp(card.value)}
+              </p>
             </div>
-          )}
+          ))}
         </div>
 
-        {/* ── Opex input ── */}
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <BarChart3 size={14} className="text-[#27B18A]" />
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-4)]">
-                  Biaya Operasional Bulanan
-                </p>
-                <p className="text-[11px] text-[var(--text-3)] mt-0.5">
-                  Sewa, gaji, listrik — digunakan untuk hitung profit bersih
-                </p>
-              </div>
-            </div>
-            {editingOpex ? (
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-4)]">Rp</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={opexInput}
-                    onChange={e => {
-                      const n = parseFloat(e.target.value);
-                      setOpexInput(e.target.value === '' ? '' : !isNaN(n) && n < 0 ? '0' : e.target.value);
-                    }}
-                    onKeyDown={e => e.key === 'Enter' && saveOpex()}
-                    autoFocus
-                    className="w-36 bg-[var(--bg)] border border-[var(--border)] rounded-xl pl-8 pr-3 py-2
-                      text-sm text-right focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20
-                      focus:border-[#27B18A]"
-                  />
-                </div>
+        {/* ── Expense Management ── */}
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-[var(--border-subtle)]">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)]">
+              Pengeluaran Bulanan
+            </span>
+          </div>
+
+          {/* Add form */}
+          <div className="px-5 py-4 border-b border-[var(--border-subtle)] space-y-3">
+            <div className="flex gap-2 flex-wrap">
+              {(['fixed', 'variable'] as const).map(t => (
                 <button
+                  key={t}
                   type="button"
-                  onClick={saveOpex}
-                  className="w-9 h-9 bg-[#27B18A] text-white rounded-xl flex items-center
-                    justify-center hover:bg-[#0E927A] transition-colors"
+                  onClick={() => {
+                    setExpType(t);
+                    setExpCategory(t === 'fixed' ? FIXED_CATEGORIES[0] : VARIABLE_CATEGORIES[0]);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                    expType === t
+                      ? 'bg-[#27B18A] text-white'
+                      : 'bg-[var(--bg)] border border-[var(--border)] text-[var(--text-2)]'
+                  }`}
                 >
-                  <Check size={14} />
+                  {t === 'fixed' ? 'Tetap (Sewa/Listrik)' : 'Variabel (Gaji/Lainnya)'}
                 </button>
-              </div>
-            ) : (
+              ))}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <select
+                value={expCategory}
+                onChange={e => setExpCategory(e.target.value)}
+                className="bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm
+                  text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]"
+              >
+                {(expType === 'fixed' ? FIXED_CATEGORIES : VARIABLE_CATEGORIES).map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <input
+                type="date"
+                value={expDate}
+                onChange={e => setExpDate(e.target.value)}
+                className="bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm
+                  text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]"
+              />
+              <input
+                type="number"
+                placeholder="Jumlah (Rp)"
+                value={expAmount}
+                onChange={e => setExpAmount(e.target.value)}
+                className="flex-1 min-w-[120px] bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm
+                  text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]"
+              />
+              <input
+                type="text"
+                placeholder="Catatan (opsional)"
+                value={expNote}
+                onChange={e => setExpNote(e.target.value)}
+                className="flex-1 min-w-[120px] bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm
+                  text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]"
+              />
               <button
                 type="button"
-                onClick={() => { setOpexInput(String(opex)); setEditingOpex(true); }}
-                className="flex items-center gap-2 group shrink-0"
+                disabled={!expAmount || !expDate || Number(expAmount) <= 0}
+                onClick={() => {
+                  addExpense({ type: expType, category: expCategory, amount: Number(expAmount), date: expDate, note: expNote || undefined });
+                  setExpAmount('');
+                  setExpNote('');
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#27B18A] text-white text-sm font-semibold
+                  hover:bg-[#0E927A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
               >
-                <span
-                  className="text-xl font-bold text-[var(--text)] tabular-nums"
-                  style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}
-                >
-                  {opex > 0 ? formatRp(opex) : '—'}
-                </span>
-                <Edit3 size={13} className="text-[var(--text-4)] group-hover:text-[var(--text-2)] transition-colors" />
+                <Plus size={14} /> Tambah
               </button>
-            )}
-          </div>
-        </div>
-
-        {/* ── Cash Flow Forecast ── */}
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp size={14} className="text-[#27B18A]" />
-            <div>
-              <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-4)]">
-                Proyeksi Cash Flow Bulan Ini
-              </span>
-              <p className="text-[11px] text-[var(--text-3)] mt-0.5">Berdasarkan tren 7 hari terakhir</p>
             </div>
           </div>
-          {!cashFlowForecast.hasData ? (
-            <p className="text-sm text-[var(--text-4)] py-2">Belum ada transaksi 7 hari terakhir</p>
+
+          {/* List */}
+          {expenses.length === 0 ? (
+            <div className="px-5 py-6 text-center text-sm text-[var(--text-4)]">Belum ada pengeluaran dicatat</div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)] mb-1">
-                  Realisasi MTD
-                </p>
-                <p
-                  className="text-xl font-bold text-[var(--text)] tabular-nums"
-                  style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}
-                >
-                  {formatRp(cashFlowForecast.mtdRevenue)}
-                </p>
-                <p className="text-[10px] text-[var(--text-3)] mt-0.5">
-                  profit {formatRp(cashFlowForecast.mtdProfit)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)] mb-1">
-                  Avg / Hari (7h)
-                </p>
-                <p
-                  className="text-xl font-bold text-[var(--text)] tabular-nums"
-                  style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}
-                >
-                  {formatRp(cashFlowForecast.dailyAvgRevenue)}
-                </p>
-                <p className="text-[10px] text-[var(--text-3)] mt-0.5">
-                  profit/hari {formatRp(cashFlowForecast.dailyAvgProfit)}
-                </p>
-              </div>
-              <div className="col-span-2 sm:col-span-1 bg-[var(--tint-amber-deep)] rounded-xl p-3 border border-[#065F46]">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#27B18A] mb-1">
-                  Proyeksi Akhir Bulan
-                </p>
-                <p
-                  className="text-xl font-bold text-[#27B18A] tabular-nums"
-                  style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}
-                >
-                  {formatRp(cashFlowForecast.forecastRevenue)}
-                </p>
-                <p className="text-[10px] text-[#27B18A] mt-0.5">
-                  est. profit {formatRp(cashFlowForecast.forecastProfit)}
-                </p>
-                <p className="text-[10px] text-[var(--text-3)] mt-1">
-                  +{cashFlowForecast.daysRemaining} hari tersisa bulan ini
-                </p>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[480px]">
+                <thead>
+                  <tr className="border-b border-[var(--border-subtle)]">
+                    {['Tanggal', 'Tipe', 'Kategori', 'Catatan', 'Jumlah', ''].map((h, i) => (
+                      <th
+                        key={i}
+                        className={`px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] ${
+                          i === 4 ? 'text-right' : i === 5 ? 'text-center' : 'text-left'
+                        }`}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenses
+                    .slice()
+                    .sort((a, b) => b.date.localeCompare(a.date))
+                    .map(ex => (
+                    <tr key={ex.id} className="border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg)]/40 transition-colors">
+                      <td className="px-4 py-3 text-xs text-[var(--text-2)] whitespace-nowrap">{ex.date}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          ex.type === 'fixed'
+                            ? 'bg-blue-50 text-blue-600'
+                            : 'bg-[var(--tint-amber)] text-[#F59E0B]'
+                        }`}>
+                          {ex.type === 'fixed' ? 'Tetap' : 'Variabel'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[var(--text)]">{ex.category}</td>
+                      <td className="px-4 py-3 text-xs text-[var(--text-3)] max-w-[160px] truncate">{ex.note ?? '—'}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-right tabular-nums text-[var(--text)]">
+                        {formatRp(ex.amount)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => deleteExpense(ex.id)}
+                          className="text-[var(--text-4)] hover:text-[#DC2626] transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
 
-        {/* ── Results ── */}
-        {totalInvestment > 0 && (
-          <>
-            {/* KPI cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)] mb-2">
-                  Total Investasi
-                </p>
-                <p
-                  className="text-xl font-bold text-[var(--text)] tabular-nums"
-                  style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}
-                >
-                  {formatRp(totalInvestment)}
-                </p>
-              </div>
-
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)] mb-2">
-                  Avg Profit Bersih / Bulan
-                </p>
-                {monthlyData.length === 0 ? (
-                  <p className="text-sm text-[var(--text-4)]">Belum ada data</p>
-                ) : (
-                  <p
-                    className="text-xl font-bold tabular-nums"
-                    style={{
-                      fontFamily: 'var(--font-bricolage, system-ui)',
-                      color: avgMonthlyNet >= 0 ? '#27B18A' : '#DC2626',
-                    }}
-                  >
-                    {formatRp(avgMonthlyNet)}
-                  </p>
-                )}
-                {monthlyData.length > 0 && (
-                  <p className="text-[10px] text-[var(--text-3)] mt-1">
-                    rata-rata {monthlyData.length} bulan
-                  </p>
-                )}
-              </div>
-
-              <div className="col-span-2 sm:col-span-1 bg-[var(--surface)] rounded-2xl border shadow-sm p-4"
-                style={{ borderColor: paybackMonths ? '#065F46' : 'var(--border)' }}>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)] mb-2">
-                  Payback Period
-                </p>
-                {paybackMonths === null ? (
-                  <p className="text-sm text-[var(--text-4)]">
-                    {monthlyData.length === 0 ? 'Belum ada data penjualan' : 'Profit negatif — evaluasi biaya'}
-                  </p>
-                ) : (
-                  <>
-                    <p
-                      className="text-xl font-bold text-[#27B18A] tabular-nums"
-                      style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}
-                    >
-                      {paybackMonths} bulan
-                    </p>
-                    <p className="text-[10px] text-[var(--text-3)] mt-1">
-                      ≈ {(paybackMonths / 12).toFixed(1)} tahun
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* ── Payback highlight card ── */}
-            {paybackMonths !== null && paybackLabel && (
-              <div
-                className="rounded-2xl border p-5 shadow-sm"
-                style={{
-                  background: paybackReached ? 'var(--tint-amber)' : 'var(--tint-amber)',
-                  borderColor: paybackReached ? '#065F46' : '#065F46',
-                }}
-              >
-                <div className="flex items-start gap-4">
-                  <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
-                    style={{ background: paybackReached ? '#D1FAE5' : 'var(--tint-amber)' }}
-                  >
-                    {paybackReached
-                      ? <CheckCircle size={22} className="text-[#27B18A]" />
-                      : <CalendarCheck size={22} className="text-[#27B18A]" />}
-                  </div>
-                  <div>
-                    <p
-                      className="text-base font-bold"
-                      style={{ color: paybackReached ? '#27B18A' : '#065F46' }}
-                    >
-                      {paybackReached
-                        ? `Investasi sudah balik modal sejak ${paybackLabel}!`
-                        : `Estimasi balik modal: ${paybackLabel}`}
-                    </p>
-                    <p
-                      className="text-sm mt-1"
-                      style={{ color: paybackReached ? '#27B18A' : '#0E927A' }}
-                    >
-                      {paybackReached
-                        ? `Total ${formatRp(currentCumulative)} profit bersih terkumpul — modal ${formatRp(totalInvestment)} sudah tertutup.`
-                        : `Sisa ${formatRp(Math.max(0, totalInvestment - currentCumulative))} lagi dari target ${formatRp(totalInvestment)}.`}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Progress bar */}
-                <div className="mt-4">
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span style={{ color: paybackReached ? '#27B18A' : '#065F46' }}>
-                      {formatRp(Math.min(currentCumulative, totalInvestment))} terkumpul
-                    </span>
-                    <span
-                      className="font-bold"
-                      style={{ color: paybackReached ? '#27B18A' : '#27B18A' }}
-                    >
-                      {(pct * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="h-3 bg-black/10 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-700"
-                      style={{
-                        width: `${pct * 100}%`,
-                        background: paybackReached ? '#27B18A' : '#27B18A',
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── Cumulative profit chart ── */}
-            {projectedChartData.length > 0 && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
-                <div className="flex items-center justify-between mb-5">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <TrendingUp size={14} className="text-[#27B18A]" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)]">
-                        Grafik Balik Modal
-                      </span>
-                    </div>
-                    <p className="text-xs text-[var(--text-3)] mt-0.5">
-                      Kumulatif profit bersih vs target investasi
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-[var(--text-2)]">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-3 h-0.5 bg-[#27B18A] rounded-full inline-block" />
-                      Aktual
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-3 h-0.5 bg-[var(--text-3)] rounded-full inline-block" style={{ borderTop: '2px dashed var(--text-3)', height: 0 }} />
-                      Proyeksi
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-3 h-0.5 bg-[#27B18A] rounded-full inline-block" />
-                      Target
-                    </span>
-                  </div>
-                </div>
-
-                <div className="h-[240px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={projectedChartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#27B18A" stopOpacity={0.15} />
-                        <stop offset="95%" stopColor="#27B18A" stopOpacity={0}    />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
-                    <XAxis
-                      dataKey="label"
-                      tick={{ fontSize: 11, fill: 'var(--text-4)' }}
-                      axisLine={false} tickLine={false} dy={6}
-                    />
-                    <YAxis
-                      tickFormatter={formatYAxis}
-                      tick={{ fontSize: 11, fill: 'var(--text-4)' }}
-                      axisLine={false} tickLine={false} width={44}
-                    />
-                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--border)', strokeWidth: 1 }} />
-                    {totalInvestment > 0 && (
-                      <ReferenceLine
-                        y={totalInvestment}
-                        stroke="#27B18A"
-                        strokeWidth={1.5}
-                        strokeDasharray="5 3"
-                        label={{
-                          value: `Target: ${formatRp(totalInvestment)}`,
-                          position: 'insideTopRight',
-                          fontSize: 10,
-                          fill: '#27B18A',
-                          fontWeight: 'bold',
-                        }}
-                      />
-                    )}
-                    <Area
-                      type="monotone"
-                      dataKey="cumulative"
-                      name="Kumulatif Profit"
-                      stroke="#27B18A"
-                      strokeWidth={2}
-                      fill="url(#profitGradient)"
-                      dot={false}
-                      activeDot={{ r: 5, fill: '#27B18A', strokeWidth: 2, stroke: '#fff' }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-                </div>
-
-                <p className="text-[10px] text-[var(--text-4)] mt-3 pt-3 border-t border-[var(--border-subtle)]">
-                  {cumulativeData.length > 0
-                    ? `Data aktual ${cumulativeData.length} bulan · proyeksi menggunakan rata-rata profit bersih ${formatRp(avgMonthlyNet)}/bulan`
-                    : 'Catat transaksi di Kasir untuk memulai tracking'}
-                </p>
-              </div>
-            )}
-
-            {/* ── Monthly breakdown table ── */}
-            {monthlyData.length > 0 && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden">
-                <div className="flex items-center gap-2 px-5 py-4 border-b border-[var(--border-subtle)]">
-                  <Clock size={14} className="text-[#27B18A]" />
-                  <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-4)]">
-                    Rincian Per Bulan
-                  </span>
-                </div>
-                <div className="overflow-x-auto max-h-[400px] overflow-y-auto scrollbar-thin">
-                  <table className="w-full min-w-[480px]">
-                    <thead>
-                      <tr className="border-b border-[var(--border-subtle)]">
-                        {['Bulan', 'Laba Kotor', 'Biaya Ops', 'Profit Bersih', 'Kumulatif'].map((h, i) => (
-                          <th
-                            key={h}
-                            className={`sticky top-0 z-10 bg-[var(--surface)] px-5 py-3 text-[10px] font-bold
-                              uppercase tracking-wider text-[var(--text-4)]
-                              ${i === 0 ? 'text-left' : 'text-right'}`}
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cumulativeData.map((row, i) => {
-                        const hitTarget = row.cumulative >= totalInvestment &&
-                          (i === 0 || cumulativeData[i - 1].cumulative < totalInvestment);
-                        return (
-                          <tr
-                            key={row.ym}
-                            className={`border-b border-[var(--border-subtle)] last:border-0 ${
-                              hitTarget ? 'bg-[var(--tint-amber)]' : i % 2 === 0 ? '' : 'bg-[var(--bg)]/40'
-                            }`}
-                          >
-                            <td className="px-5 py-3 text-sm font-medium text-[var(--text)]">
-                              {row.label}
-                              {hitTarget && (
-                                <span className="ml-2 text-[10px] font-bold text-[#F59E0B]
-                                  bg-[var(--tint-amber)] border border-[#065F46] px-1.5 py-0.5 rounded-full">
-                                  ✓ BEP
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-5 py-3 text-sm text-right tabular-nums text-[var(--text)]">
-                              {formatRp(row.grossProfit)}
-                            </td>
-                            <td className="px-5 py-3 text-sm text-right tabular-nums text-[#27B18A]">
-                              {opex > 0 ? `−${formatRp(opex)}` : '—'}
-                            </td>
-                            <td className="px-5 py-3 text-sm text-right tabular-nums font-semibold"
-                              style={{ color: row.netProfit >= 0 ? '#27B18A' : '#DC2626' }}>
-                              {row.netProfit >= 0 ? '+' : ''}{formatRp(row.netProfit)}
-                            </td>
-                            <td className="px-5 py-3 text-sm text-right tabular-nums font-bold"
-                              style={{ color: row.cumulative >= totalInvestment ? '#27B18A' : 'var(--text)' }}>
-                              {formatRp(row.cumulative)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Empty state */}
-            {monthlyData.length === 0 && (
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-10 shadow-sm text-center">
-                <AlertTriangle size={28} className="mx-auto text-[var(--text-4)] mb-3" />
-                <p className="text-sm font-medium text-[var(--text-2)]">Belum ada data penjualan</p>
-                <p className="text-xs text-[var(--text-4)] mt-1">
-                  Catat transaksi di Kasir untuk melihat proyeksi.
-                </p>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Empty investment state */}
-        {totalInvestment === 0 && (
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-10 shadow-sm text-center">
-            <Target size={28} className="mx-auto text-[var(--text-4)] mb-3" />
-            <p className="text-sm font-medium text-[var(--text-2)]">Isi investasi awal terlebih dahulu</p>
-            <p className="text-xs text-[var(--text-4)] mt-1">
-              Tambahkan item seperti mesin espresso, grinder, renovasi, dll.
-            </p>
-          </div>
-        )}
+        <InvestmentSection
+          filteredRecords={filteredRecords}
+          endDate={endDate}
+          opex={opex}
+          onOpexChange={setOpex}
+        />
 
         {/* ── Food Cost % per Menu ── */}
         {foodCostItems.length > 0 && (

@@ -6,7 +6,7 @@ import {
   Plus, Minus, ShoppingBag,
   CheckCircle2, RotateCcw, Receipt, AlertTriangle, Loader2,
   Users, UserPlus, Search, Gift, X, Trash2,
-  Archive, MessageCircle, Printer,
+  Archive, MessageCircle, Printer, Settings,
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { useSavedRecipes } from '@/hooks/useSavedRecipes';
@@ -16,13 +16,14 @@ import { useSalesRecords } from '@/hooks/useSalesRecords';
 import { getPricingTiers } from '@/lib/engine';
 import { parseNum, formatRp } from '@/lib/format';
 import { useCustomers } from '@/hooks/useCustomers';
+import { useCustomerStore } from '@/store/customerStore';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { useAuthStore } from '@/store/authStore';
 import { logActivity } from '@/lib/logger';
 import { printReceipt } from '@/lib/thermalPrinter';
 import { sendReceipt } from '@/lib/whatsapp';
 import { toast } from 'sonner';
-import type { SaleRecord, StockTransaction, StockTransactionItem, Customer } from '@/types/hpp';
+import type { SaleRecord, StockTransaction, StockTransactionItem, Customer, SavedRecipe } from '@/types/hpp';
 
 type TierKey = 'competitive' | 'standard' | 'premium';
 type ViewTab = 'pos' | 'pelanggan' | 'tutup-shift';
@@ -161,12 +162,13 @@ function SuccessScreen({
 // ─── Main POS page ───────────────────────────────────────────────────────────
 
 export default function POSPage() {
-  const { recipes } = useSavedRecipes();
+  const { recipes, patchRecipe } = useSavedRecipes();
   const { ingredients: rawIngredients, deductStock } = useSavedRawIngredients();
   const { transactions, add: addTransaction } = useStockTransactions();
   const { records, add: addSaleRecord, archiveShift } = useSalesRecords();
 
   const { customers, addCustomer, updateAfterOrder, deleteCustomer } = useCustomers();
+  const { upsertCustomer } = useCustomerStore();
   const { reduceStock } = useInventoryStore();
   const { userRole } = useAuthStore();
   const [view, setView] = useState<ViewTab>('pos');
@@ -233,9 +235,12 @@ export default function POSPage() {
   const effectiveRevenue = isLoyaltyFree ? 0 : Math.max(0, totals.revenue - discountAmount);
   const effectiveProfit = effectiveRevenue - totals.hpp;
 
+  const [checkoutName, setCheckoutName] = useState('');
+  const [checkoutPhone, setCheckoutPhone] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'QRIS'>('CASH');
+  const [editingMapping, setEditingMapping] = useState<string | null>(null);
 
   const handleCheckout = () => {
     if (cartLines.length === 0 || isProcessing) return;
@@ -327,10 +332,15 @@ export default function POSPage() {
       if (selectedCustomer) {
         updateAfterOrder(selectedCustomer.id, totalQty, isLoyaltyFree);
       }
+      if (checkoutPhone.trim()) {
+        upsertCustomer(checkoutName, checkoutPhone, effectiveRevenue);
+      }
       setIsProcessing(false);
       setCart({});
       setNote('');
       setDiscountRaw('');
+      setCheckoutName('');
+      setCheckoutPhone('');
       setSelectedCustomer(null);
       setMobileSheetOpen(false);
       setPaymentMethod('CASH');
@@ -478,12 +488,23 @@ export default function POSPage() {
                       {/* Name & mode badge */}
                       <div className="flex items-start justify-between gap-1 mb-1">
                         <p className="text-sm font-bold text-[var(--text)] leading-snug">{recipe.name}</p>
-                        {recipe.mode === 'batch' && (
-                          <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full
-                            bg-[var(--surface)] text-[var(--text-2)]">
-                            batch
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); setEditingMapping(recipe.id); }}
+                            className="w-5 h-5 flex items-center justify-center rounded text-[var(--text-4)]
+                              hover:text-[#27B18A] transition-colors"
+                            title="Atur bahan baku"
+                          >
+                            <Settings size={11} />
+                          </button>
+                          {recipe.mode === 'batch' && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full
+                              bg-[var(--surface)] text-[var(--text-2)]">
+                              batch
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Sell price */}
@@ -562,6 +583,10 @@ export default function POSPage() {
                 onSetQty={(id, qty) => setCart(prev => qty === 0 ? (() => { const { [id]: _, ...r } = prev; return r; })() : { ...prev, [id]: qty })}
                 paymentMethod={paymentMethod}
                 onPaymentMethodChange={setPaymentMethod}
+                checkoutName={checkoutName}
+                checkoutPhone={checkoutPhone}
+                onCheckoutNameChange={setCheckoutName}
+                onCheckoutPhoneChange={setCheckoutPhone}
               />
             </div>
           </div>
@@ -787,6 +812,134 @@ export default function POSPage() {
           </div>
         </>
       )}
+
+      {/* ── Ingredient mapping modal ── */}
+      {editingMapping !== null && (() => {
+        const recipe = recipes.find(r => r.id === editingMapping);
+        if (!recipe) return null;
+        const catalogNames = rawIngredients.map(i => i.name);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
+            <div
+              className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 max-w-sm w-full shadow-xl"
+              style={{ fontFamily: 'var(--font-jakarta, system-ui, sans-serif)' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-4)]">Bahan Baku</p>
+                  <p className="text-base font-bold text-[var(--text)] mt-0.5">{recipe.name}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingMapping(null)}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl text-[var(--text-4)]
+                    hover:bg-[var(--bg)] transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <IngredientMappingEditor
+                key={recipe.id}
+                recipe={recipe}
+                catalogNames={catalogNames}
+                onSave={mappings => {
+                  patchRecipe(recipe.id, { inventoryIngredients: mappings });
+                  setEditingMapping(null);
+                  toast.success(`Mapping "${recipe.name}" disimpan`);
+                }}
+              />
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+// ─── Ingredient mapping editor ────────────────────────────────────────────────
+
+function IngredientMappingEditor({
+  recipe,
+  catalogNames,
+  onSave,
+}: {
+  recipe: SavedRecipe;
+  catalogNames: string[];
+  onSave: (mappings: Array<{ inventoryId: string; quantity: number }>) => void;
+}) {
+  const [rows, setRows] = useState<Array<{ inventoryId: string; quantity: number }>>(
+    recipe.inventoryIngredients?.map(x => ({ ...x })) ?? []
+  );
+
+  const addRow = () => setRows(r => [...r, { inventoryId: catalogNames[0] ?? '', quantity: 0 }]);
+  const removeRow = (i: number) => setRows(r => r.filter((_, idx) => idx !== i));
+  const update = (i: number, field: 'inventoryId' | 'quantity', val: string) =>
+    setRows(r => r.map((row, idx) => idx !== i ? row : {
+      ...row,
+      [field]: field === 'quantity' ? Math.max(0, Number(val)) : val,
+    }));
+
+  return (
+    <div className="space-y-2">
+      {rows.length === 0 && (
+        <p className="text-xs text-[var(--text-4)] italic">
+          Belum ada bahan. Tambahkan agar stok berkurang otomatis saat transaksi.
+        </p>
+      )}
+      {rows.map((row, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <select
+            value={row.inventoryId}
+            onChange={e => update(i, 'inventoryId', e.target.value)}
+            className="flex-1 bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm
+              focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A] text-[var(--text)]"
+          >
+            {catalogNames.length === 0
+              ? <option value="">— Belum ada bahan —</option>
+              : catalogNames.map(n => <option key={n} value={n}>{n}</option>)
+            }
+          </select>
+          <input
+            type="number"
+            min={0}
+            step="any"
+            value={row.quantity || ''}
+            onChange={e => update(i, 'quantity', e.target.value)}
+            placeholder="Qty"
+            className="w-20 bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm
+              focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]
+              text-[var(--text)] text-right"
+          />
+          <button
+            type="button"
+            onClick={() => removeRow(i)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#DC2626]
+              hover:bg-[var(--tint-red)] transition-colors shrink-0"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+      ))}
+      <div className="flex items-center gap-2 pt-1">
+        <button
+          type="button"
+          onClick={addRow}
+          disabled={catalogNames.length === 0}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold
+            border border-[var(--border)] text-[var(--text-2)] hover:border-[#27B18A]/40
+            hover:text-[#27B18A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Plus size={12} /> Tambah
+        </button>
+        <button
+          type="button"
+          onClick={() => onSave(rows.filter(r => r.inventoryId && r.quantity > 0))}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold
+            bg-[#27B18A] text-white hover:bg-[#0E927A] transition-colors"
+        >
+          Simpan
+        </button>
+      </div>
     </div>
   );
 }
@@ -814,6 +967,10 @@ function OrderPanel({
   onSetQty,
   paymentMethod,
   onPaymentMethodChange,
+  checkoutName,
+  checkoutPhone,
+  onCheckoutNameChange,
+  onCheckoutPhoneChange,
 }: {
   cartLines: { recipe: { id: string; name: string; hpp: number }; qty: number; sellPrice: number; subtotal: number }[];
   totals: { revenue: number; hpp: number; profit: number };
@@ -831,6 +988,10 @@ function OrderPanel({
   onSetQty: (id: string, qty: number) => void;
   paymentMethod: 'CASH' | 'QRIS';
   onPaymentMethodChange: (m: 'CASH' | 'QRIS') => void;
+  checkoutName: string;
+  checkoutPhone: string;
+  onCheckoutNameChange: (v: string) => void;
+  onCheckoutPhoneChange: (v: string) => void;
 }) {
   return (
     <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden">
@@ -953,6 +1114,38 @@ function OrderPanel({
                 </div>
               </div>
             )}
+
+            {/* Customer info (CRM) */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block mb-1.5">
+                  Nama Pelanggan
+                </label>
+                <input
+                  type="text"
+                  value={checkoutName}
+                  onChange={e => onCheckoutNameChange(e.target.value)}
+                  placeholder="Nama (opsional)"
+                  className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm
+                    focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]
+                    placeholder:text-[var(--text-4)] text-[var(--text)]"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block mb-1.5">
+                  WhatsApp
+                </label>
+                <input
+                  type="tel"
+                  value={checkoutPhone}
+                  onChange={e => onCheckoutPhoneChange(e.target.value)}
+                  placeholder="08xx (opsional)"
+                  className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm
+                    focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]
+                    placeholder:text-[var(--text-4)] text-[var(--text)]"
+                />
+              </div>
+            </div>
 
             {/* Note field */}
             <div>
@@ -1548,6 +1741,7 @@ function CustomerTable({
           </table>
         </div>
       )}
+
     </div>
   );
 }

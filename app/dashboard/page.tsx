@@ -12,11 +12,12 @@ import {
   FileDown, MessageSquare, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
   BarChart, Bar, ReferenceLine, Cell,
 } from 'recharts';
-import { getTopMenusByMargin } from '@/lib/analytics';
+import { SalesTrendChart } from '@/components/DashboardChart';
+import { getTopMenusByMargin, getPeakHours, getTopSelling } from '@/lib/analytics';
 import { useSalesRecords } from '@/hooks/useSalesRecords';
 import { useSavedRawIngredients } from '@/hooks/useSavedRawIngredients';
 import { useStockTransactions } from '@/hooks/useStockTransactions';
@@ -175,113 +176,6 @@ function SmallCard({ label, value, sub }: { label: string; value: string; sub?: 
   );
 }
 
-function formatYAxis(value: number) {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}jt`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}k`;
-  return String(value);
-}
-
-function ChartTooltip({ active, payload, label }: {
-  active?: boolean;
-  payload?: { dataKey: string; name: string; value: number; color: string }[];
-  label?: string;
-}) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2.5 shadow-lg text-xs">
-      <p className="font-bold text-[var(--text-2)] mb-2">{label}</p>
-      {payload.map(p => (
-        <div key={p.dataKey} className="flex items-center gap-2 mb-1 last:mb-0">
-          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
-          <span className="text-[var(--text-2)]">{p.name}</span>
-          <span className="font-semibold text-[var(--text)] ml-2 tabular-nums">
-            {formatRp(p.value)}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SalesTrendChart({ data }: {
-  data: { date: string; omzet: number; profit: number }[];
-}) {
-  const hasAnyData = data.some(d => d.omzet > 0 || d.profit > 0);
-
-  return (
-    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)]">
-            Tren Penjualan
-          </span>
-          <p className="text-xs text-[var(--text-3)] mt-0.5">7 Hari Terakhir</p>
-        </div>
-        <div className="flex items-center gap-4 text-xs text-[var(--text-2)]">
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-0.5 bg-[#2563EB] rounded-full inline-block" />
-            Omzet
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-0.5 bg-[#27B18A] rounded-full inline-block" />
-            Profit
-          </span>
-        </div>
-      </div>
-
-      {!hasAnyData ? (
-        <div className="h-48 flex items-center justify-center">
-          <p className="text-sm text-[var(--text-4)]">Belum ada data 7 hari terakhir</p>
-        </div>
-      ) : (
-        <div className="h-[220px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="var(--border-subtle)"
-              vertical={false}
-            />
-            <XAxis
-              dataKey="date"
-              tick={{ fontSize: 11, fill: 'var(--text-4)', fontFamily: 'var(--font-jakarta, system-ui)' }}
-              axisLine={false}
-              tickLine={false}
-              dy={6}
-            />
-            <YAxis
-              tickFormatter={formatYAxis}
-              tick={{ fontSize: 11, fill: 'var(--text-4)', fontFamily: 'var(--font-jakarta, system-ui)' }}
-              axisLine={false}
-              tickLine={false}
-              width={40}
-            />
-            <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--border)', strokeWidth: 1 }} />
-            <Line
-              type="monotone"
-              dataKey="omzet"
-              name="Omzet"
-              stroke="#2563EB"
-              strokeWidth={2}
-              dot={{ r: 3, fill: '#2563EB', strokeWidth: 0 }}
-              activeDot={{ r: 5, fill: '#2563EB', strokeWidth: 2, stroke: '#fff' }}
-            />
-            <Line
-              type="monotone"
-              dataKey="profit"
-              name="Profit"
-              stroke="#27B18A"
-              strokeWidth={2}
-              dot={{ r: 3, fill: '#27B18A', strokeWidth: 0 }}
-              activeDot={{ r: 5, fill: '#27B18A', strokeWidth: 2, stroke: '#fff' }}
-            />
-          </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ─── Quick-Overview Cards ─────────────────────────────────────────────────────
 
@@ -886,6 +780,9 @@ export default function DashboardPage() {
 
   const topByMargin = useMemo(() => getTopMenusByMargin(records, 3), [records]);
 
+  const peakHours   = useMemo(() => getPeakHours(current),    [current]);
+  const topSelling  = useMemo(() => getTopSelling(current, 5), [current]);
+
   const chartData = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 7 }, (_, i) => {
@@ -929,6 +826,13 @@ export default function DashboardPage() {
         return a.daysLeft - b.daysLeft;
       });
   }, [records, rawIngredients]);
+
+  const lowStockAlert = useMemo(
+    () => rawIngredients.filter(
+      i => i.currentStock !== undefined && i.minStock !== undefined && i.currentStock < i.minStock,
+    ),
+    [rawIngredients],
+  );
 
   const weeklyTop3 = useMemo(() => {
     const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -1065,6 +969,28 @@ export default function DashboardPage() {
       <Navbar active="dashboard" />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 lg:py-8 space-y-6">
+
+        {lowStockAlert.length > 0 && (
+          <div className="flex items-start gap-3 bg-[var(--tint-red)] border border-[#DC2626]/30
+            rounded-2xl px-4 py-3.5 shadow-sm">
+            <AlertTriangle size={16} className="text-[#DC2626] shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[#DC2626]">
+                {lowStockAlert.length} bahan stok di bawah minimum
+              </p>
+              <p className="text-xs text-[#DC2626]/80 mt-0.5 truncate">
+                {lowStockAlert.map(i => `${i.name} (${i.currentStock} ${i.unit})`).join(' · ')}
+              </p>
+            </div>
+            <a
+              href="/settings"
+              className="ml-auto shrink-0 text-[11px] font-semibold text-[#DC2626] underline
+                underline-offset-2 hover:opacity-70 transition-opacity whitespace-nowrap"
+            >
+              Atur stok
+            </a>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <StockLifetimeCard items={stockLifetime} />
@@ -1331,6 +1257,86 @@ export default function DashboardPage() {
             </div>
 
             <SalesTrendChart data={chartData} />
+
+            {/* ── Business Insights ── */}
+            {current.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* Sales per Hour bar chart */}
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Clock size={14} className="text-[#27B18A]" />
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)]">
+                        Jam Tersibuk
+                      </span>
+                      <p className="text-xs text-[var(--text-3)] mt-0.5">Transaksi per jam</p>
+                    </div>
+                  </div>
+                  <div className="h-[180px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={peakHours.filter(h => h.txCount > 0)} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--text-4)' }} axisLine={false} tickLine={false} dy={4} />
+                        <YAxis tick={{ fontSize: 10, fill: 'var(--text-4)' }} axisLine={false} tickLine={false} width={24} allowDecimals={false} />
+                        <Tooltip
+                          content={({ active, payload, label }) => active && payload?.length ? (
+                            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 shadow-lg text-xs">
+                              <p className="font-bold text-[var(--text-2)] mb-1">{label}</p>
+                              <p className="text-[var(--text)]">{payload[0].value} transaksi</p>
+                            </div>
+                          ) : null}
+                        />
+                        <Bar dataKey="txCount" name="Transaksi" fill="#27B18A" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Top 5 Best Sellers table */}
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Trophy size={14} className="text-[#27B18A]" />
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)]">
+                        Top 5 Best Sellers
+                      </span>
+                      <p className="text-xs text-[var(--text-3)] mt-0.5">Berdasarkan kuantitas terjual</p>
+                    </div>
+                  </div>
+                  {topSelling.length === 0 ? (
+                    <p className="text-sm text-[var(--text-4)] text-center py-8">Belum ada data</p>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {topSelling.map((item, i) => {
+                        const maxQty = topSelling[0].totalQty;
+                        const pct = maxQty > 0 ? item.totalQty / maxQty : 0;
+                        return (
+                          <div key={item.name}>
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-[10px] font-bold tabular-nums w-4 text-[var(--text-4)] shrink-0">
+                                  #{i + 1}
+                                </span>
+                                <span className="text-sm font-medium text-[var(--text)] truncate">{item.name}</span>
+                              </div>
+                              <span className="text-sm font-bold tabular-nums text-[var(--text)] shrink-0 ml-2">
+                                {item.totalQty}×
+                              </span>
+                            </div>
+                            <div className="h-1.5 bg-[var(--bg)] rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-500"
+                                style={{ width: `${pct * 100}%`, background: i === 0 ? '#27B18A' : '#93C5FD' }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-sm p-5">
               <div className="flex items-center gap-2 mb-4">
