@@ -3,29 +3,46 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { uid } from '@/lib/format';
-import type { Expense } from '@/types/finance';
+import type { CashflowEntry } from '@/types/finance';
 
-const STORAGE_KEY = 'profitly-expenses';
+const STORAGE_KEY = 'profitly-cashflow';
 
 interface FinanceState {
-  expenses: Expense[];
-  addExpense: (data: Omit<Expense, 'id'>) => void;
-  deleteExpense: (id: string) => void;
+  entries: CashflowEntry[];
+  migrated: boolean;
+  addEntry: (data: Omit<CashflowEntry, 'id'>) => void;
+  bulkAddEntries: (dataList: Omit<CashflowEntry, 'id'>[]) => void;
+  deleteEntry: (id: string) => void;
+  deleteEntriesByRef: (referenceId: string) => void;
+  setMigrated: () => void;
 }
 
 export const useFinanceStore = create<FinanceState>()(
   persist(
     (set) => ({
-      expenses: [],
+      entries: [],
+      migrated: false,
 
-      addExpense: (data) => {
-        const expense: Expense = { ...data, id: uid() };
-        set(s => ({ expenses: [...s.expenses, expense] }));
+      addEntry: (data) => {
+        const entry: CashflowEntry = { ...data, id: uid() };
+        set(s => ({ entries: [...s.entries, entry] }));
       },
 
-      deleteExpense: (id) => {
-        set(s => ({ expenses: s.expenses.filter(e => e.id !== id) }));
+      bulkAddEntries: (dataList) => {
+        if (dataList.length === 0) return;
+        const newEntries = dataList.map(d => ({ ...d, id: uid() }));
+        set(s => ({ entries: [...s.entries, ...newEntries] }));
       },
+
+      deleteEntry: (id) => {
+        set(s => ({ entries: s.entries.filter(e => e.id !== id) }));
+      },
+
+      deleteEntriesByRef: (referenceId) => {
+        set(s => ({ entries: s.entries.filter(e => e.referenceId !== referenceId) }));
+      },
+
+      setMigrated: () => set({ migrated: true }),
     }),
     {
       name: STORAGE_KEY,

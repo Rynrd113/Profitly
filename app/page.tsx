@@ -288,6 +288,7 @@ export default function POSPage() {
         sellPrice: isLoyaltyFree ? 0 : l.sellPrice,
         hpp: l.recipe.hpp,
         subtotal: isLoyaltyFree ? 0 : l.subtotal,
+        portionUnit: l.recipe.portionUnit,
       })),
       totalRevenue: effectiveRevenue,
       totalHPP: totals.hpp,
@@ -516,6 +517,11 @@ export default function POSPage() {
                         style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}
                       >
                         {formatRp(sellPrice)}
+                        {recipe.portionUnit && recipe.portionUnit !== 'porsi' && (
+                          <span className="text-[11px] font-normal text-[var(--text-3)] ml-1">
+                            /{recipe.portionUnit}
+                          </span>
+                        )}
                       </p>
                       <p className="text-[10px] text-[var(--text-4)] mb-3">
                         HPP {formatRp(recipe.hpp)}

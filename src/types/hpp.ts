@@ -93,6 +93,7 @@ export interface SaleItem {
   sellPrice: number;
   hpp: number;
   subtotal: number;
+  portionUnit?: string;
 }
 
 export interface SaleDeduction {
@@ -160,5 +161,6 @@ export interface SavedRecipe {
   batchSize: string;
   fixedCost: string;
   hpp: number;
+  portionUnit?: string;                  // e.g. 'kg', 'ton', 'sesi', 'porsi'
   inventoryIngredients?: Array<{ inventoryId: string; quantity: number }>;
 }

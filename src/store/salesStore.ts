@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { uid } from '@/lib/format';
 import type { SaleRecord } from '@/types/hpp';
+import { useFinanceStore } from '@/store/financeStore';
 
 const ACTIVE_KEY  = 'profitly-sales-records';
 const ARCHIVE_KEY = 'profitly-shift-archives';
@@ -60,6 +61,14 @@ export const useSalesStore = create<SalesState>()(
           localStorage.setItem(ACTIVE_KEY, b64(records));
           return { records, allRecords: [rec, ...s.allRecords] };
         });
+        useFinanceStore.getState().addEntry({
+          date: rec.timestamp.slice(0, 10),
+          type: 'IN',
+          amount: rec.totalRevenue,
+          category: 'Penjualan',
+          note: rec.items.map(i => `${i.qty}× ${i.recipeName}`).join(', '),
+          referenceId: rec.id,
+        });
         return rec;
       },
 
@@ -70,6 +79,7 @@ export const useSalesStore = create<SalesState>()(
           localStorage.setItem(ACTIVE_KEY, b64(records));
           return { records, allRecords: s.allRecords.map(upd) };
         });
+        useFinanceStore.getState().deleteEntriesByRef(id);
       },
 
       archiveShift: () => {

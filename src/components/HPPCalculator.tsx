@@ -242,6 +242,7 @@ export function HPPCalculator({
       batchSize,
       fixedCost,
       hpp: result.hpp,
+      portionUnit,
     });
     setTimeout(() => {
       setIsSaving(false);

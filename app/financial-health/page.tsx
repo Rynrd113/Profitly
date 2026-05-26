@@ -27,7 +27,11 @@ export default function FinancialHealthPage() {
   const { allRecords: records } = useSalesRecords();
   const { recipes } = useSavedRecipes();
   const { ingredients: rawIngredients } = useSavedRawIngredients();
-  const { expenses, addExpense, deleteExpense } = useFinanceStore();
+  const { entries: _entries, addEntry, deleteEntry } = useFinanceStore();
+  const expenses = _entries.filter(e => e.type === 'OUT');
+  const addExpense = (data: { type: 'fixed' | 'variable'; category: string; amount: number; date: string; note?: string }) =>
+    addEntry({ type: 'OUT', expenseType: data.type, category: data.category, amount: data.amount, date: data.date, note: data.note ?? '' });
+  const deleteExpense = (id: string) => deleteEntry(id);
 
   const [expType,     setExpType]     = useState<'fixed' | 'variable'>('fixed');
   const [expCategory, setExpCategory] = useState<string>(FIXED_CATEGORIES[0]);
@@ -543,11 +547,11 @@ export default function FinancialHealthPage() {
                       <td className="px-4 py-3 text-xs text-[var(--text-2)] whitespace-nowrap">{ex.date}</td>
                       <td className="px-4 py-3">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          ex.type === 'fixed'
+                          ex.expenseType === 'fixed'
                             ? 'bg-blue-50 text-blue-600'
                             : 'bg-[var(--tint-amber)] text-[#F59E0B]'
                         }`}>
-                          {ex.type === 'fixed' ? 'Tetap' : 'Variabel'}
+                          {ex.expenseType === 'fixed' ? 'Tetap' : 'Variabel'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-[var(--text)]">{ex.category}</td>
