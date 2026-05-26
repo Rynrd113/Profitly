@@ -27,8 +27,8 @@ export default function FinancialHealthPage() {
   const { allRecords: records } = useSalesRecords();
   const { recipes } = useSavedRecipes();
   const { ingredients: rawIngredients } = useSavedRawIngredients();
-  const { entries: _entries, addEntry, deleteEntry } = useFinanceStore();
-  const expenses = _entries.filter(e => e.type === 'OUT');
+  const { entries: _rawEntries, addEntry, deleteEntry } = useFinanceStore();
+  const expenses = (_rawEntries ?? []).filter(e => e.type === 'OUT');
   const addExpense = (data: { type: 'fixed' | 'variable'; category: string; amount: number; date: string; note?: string }) =>
     addEntry({ type: 'OUT', expenseType: data.type, category: data.category, amount: data.amount, date: data.date, note: data.note ?? '' });
   const deleteExpense = (id: string) => deleteEntry(id);

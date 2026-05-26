@@ -55,7 +55,8 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 
 export default function FinancePage() {
   const { allRecords, hydrate } = useSalesStore();
-  const { entries, migrated, bulkAddEntries, addEntry, deleteEntry, setMigrated } = useFinanceStore();
+  const { entries: _rawEntries, migrated, bulkAddEntries, addEntry, deleteEntry, setMigrated } = useFinanceStore();
+  const entries = _rawEntries ?? [];
 
   const migrationRanRef = useRef(false);
 

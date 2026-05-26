@@ -47,6 +47,9 @@ export const useFinanceStore = create<FinanceState>()(
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state && !Array.isArray(state.entries)) state.entries = [];
+      },
     },
   ),
 );
