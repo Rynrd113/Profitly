@@ -1097,7 +1097,7 @@ export default function DashboardPage() {
                 <BarChart3 size={14} className="text-[var(--text-4)]" />
               </div>
               <div className="h-[200px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barSize={22}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                     <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
@@ -1273,7 +1273,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="h-[180px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height={180}>
                       <BarChart data={peakHours.filter(h => h.txCount > 0)} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
                         <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--text-4)' }} axisLine={false} tickLine={false} dy={4} />

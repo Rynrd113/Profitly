@@ -72,7 +72,7 @@ export function BEPChart({ hpp, tiers, bep, fixedCost, selectedSellPrice }: BEPC
         {selectedSellPrice && <span className="ml-1 text-[10px] text-[var(--text-4)]">(harga dipilih)</span>}
       </p>
       <div className="h-[220px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height={220}>
         <LineChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
           <XAxis
