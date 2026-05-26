@@ -9,6 +9,14 @@ import type { BEPResult } from '@/lib/engine';
 import { calculateBEP } from '@/lib/engine';
 import { formatRp } from '@/lib/format';
 import { usePriceStore } from '@/store/priceStore';
+import type { BusinessType } from '@/types/business';
+
+const RESULT_LABELS: Record<BusinessType, { hppLabel: string; unitLabel: string; batchUnit: string }> = {
+  FNB:         { hppLabel: 'HPP per Porsi',    unitLabel: 'porsi / bulan', batchUnit: 'cup'   },
+  SERVICE:     { hppLabel: 'HPP per Layanan',  unitLabel: 'sesi / bulan',  batchUnit: 'sesi'  },
+  MARKETPLACE: { hppLabel: 'HPP per Unit',     unitLabel: 'unit / bulan',  batchUnit: 'unit'  },
+  WHOLESALE:   { hppLabel: 'HPP per Porsi',    unitLabel: 'porsi / bulan', batchUnit: 'porsi' },
+};
 
 interface ResultsPanelProps {
   result: {
@@ -19,9 +27,17 @@ interface ResultsPanelProps {
   } | null;
   fixedCost: number;
   targetUnits: number;
+  businessType?: BusinessType;
+  totalHours?: number;
+  unitName?: string;
 }
 
-export function ResultsPanel({ result, fixedCost, targetUnits }: ResultsPanelProps) {
+export function ResultsPanel({ result, fixedCost, targetUnits, businessType = 'FNB', totalHours = 0, unitName }: ResultsPanelProps) {
+  const baseLabels = RESULT_LABELS[businessType];
+  const resolvedUnit = unitName ?? baseLabels.batchUnit;
+  const labels = businessType === 'WHOLESALE'
+    ? { hppLabel: `HPP per ${resolvedUnit}`, unitLabel: `${resolvedUnit} / bulan`, batchUnit: resolvedUnit }
+    : baseLabels;
   const [downloading, setDownloading] = useState(false);
   const { targetPrice, setTargetPrice, clearTargetPrice } = usePriceStore();
 
@@ -61,7 +77,7 @@ export function ResultsPanel({ result, fixedCost, targetUnits }: ResultsPanelPro
       <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)]">
-            HPP per Porsi
+            {labels.hppLabel}
           </span>
           <TrendingUp size={15} className="text-[#27B18A]" />
         </div>
@@ -72,9 +88,22 @@ export function ResultsPanel({ result, fixedCost, targetUnits }: ResultsPanelPro
               {formatRp(result.hpp)}
             </p>
             <p className="text-xs text-[var(--text-3)] mt-2">Harga Pokok Produksi</p>
+            {effectiveSellPrice > 0 && result.hpp > 0 && (() => {
+              if (businessType === 'SERVICE' && totalHours > 0) {
+                const marginPerHour = (effectiveSellPrice - result.hpp) / totalHours;
+                return <p className="text-xs text-[var(--text-3)] mt-1">Margin/jam: <span className="font-semibold text-[var(--text)]">{formatRp(Math.round(marginPerHour))}</span></p>;
+              }
+              if (businessType === 'MARKETPLACE') {
+                const netMargin = effectiveSellPrice - result.hpp;
+                const pct = Math.round((1 - result.hpp / effectiveSellPrice) * 100);
+                return <p className="text-xs text-[var(--text-3)] mt-1">Net margin: <span className={`font-semibold ${netMargin >= 0 ? 'text-[#27B18A]' : 'text-red-500'}`}>{formatRp(netMargin)} ({pct}%)</span></p>;
+              }
+              const foodCostPct = (result.hpp / effectiveSellPrice * 100).toFixed(0);
+              return <p className="text-xs text-[var(--text-3)] mt-1">Food Cost: <span className="font-semibold text-[var(--text)]">{foodCostPct}%</span></p>;
+            })()}
             {result.batch && (
               <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between">
-                <span className="text-xs text-[var(--text-3)]">Total {result.batch} cup</span>
+                <span className="text-xs text-[var(--text-3)]">Total {result.batch} {labels.batchUnit}</span>
                 <span className="text-sm font-bold text-[#27B18A] tabular-nums"
                   style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}>
                   {formatRp(result.hpp * result.batch)}
@@ -125,7 +154,7 @@ export function ResultsPanel({ result, fixedCost, targetUnits }: ResultsPanelPro
               style={{ fontFamily: 'var(--font-bricolage, system-ui)' }}>
               {Math.ceil(effectiveBep.bepUnit).toLocaleString('id-ID')}
             </span>
-            <span className="text-sm text-[var(--text-3)]">porsi / bulan</span>
+            <span className="text-sm text-[var(--text-3)]">{labels.unitLabel}</span>
           </div>
           <p className="text-xs text-[var(--text-3)] mt-1.5">
             {formatRp(effectiveBep.bepRevenue)} omzet minimal untuk balik modal

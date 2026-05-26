@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Package, Zap, SlidersHorizontal, ChevronDown, Trash2, BookmarkPlus, History, Loader2, X } from 'lucide-react';
+import { Package, Zap, SlidersHorizontal, ChevronDown, Trash2, BookmarkPlus, History, Loader2, X, Briefcase, ShoppingBag, Tag } from 'lucide-react';
 import {
   TextInput, NumInput, DeleteBtn, AddRowBtn, SectionHeader,
 } from '@/components/CalculatorShared';
@@ -11,21 +11,42 @@ import { ProfitScenariosPanel } from '@/components/ProfitScenariosPanel';
 import { IngredientNameInput } from '@/components/IngredientNameInput';
 import { calculateTotalHPP, getPricingTiers, calculateBEP } from '@/lib/engine';
 import { uid, parseNum, formatRp } from '@/lib/format';
+import type { BusinessType } from '@/types/business';
+import type { IngredientCategory, IngredientUnit } from '@/types/hpp';
 import { usePriceStore } from '@/store/priceStore';
 import { toast } from 'sonner';
 import type { Ingredient, OperationalCost, DerivedIngredient, SavedRawIngredient, SavedRecipeIngredient, SavedRecipeOp, SavedRecipe } from '@/types/hpp';
 import type { CalcMode } from '@/components/ModeSelectorCards';
 
+const WHOLESALE_UNITS: IngredientUnit[] = ['kg', 'ton', 'kwintal', 'sak', 'bal'];
+const WHOLESALE_UNIT_SET = new Set<string>(WHOLESALE_UNITS);
+
 interface IngredientRow {
   id: string; name: string;
   purchasePrice: string; purchaseVolume: string;
-  unit: 'gr' | 'ml' | 'pcs'; usage: string;
+  unit: IngredientUnit; usage: string;
   yieldFactor: string; isDerived?: boolean;
 }
 
 interface OperationalRow {
   id: string; name: string; price: string; usage: string;
 }
+
+const LABELS: Record<BusinessType, {
+  sectionHeader: string; yieldCol: string; yieldMobile: string;
+  catalogLabel: string; portionUnit: string; ingCategory: IngredientCategory;
+}> = {
+  FNB:         { sectionHeader: 'Bahan Baku',             yieldCol: 'Susut %',        yieldMobile: 'Susut',       catalogLabel: 'Katalog Bahan',            portionUnit: 'porsi', ingCategory: 'RAW_MATERIAL' },
+  SERVICE:     { sectionHeader: 'Biaya Jasa',             yieldCol: 'Susut %',        yieldMobile: 'Susut',       catalogLabel: 'Daftar Tenaga Kerja / Alat', portionUnit: 'sesi',  ingCategory: 'LABOR' },
+  MARKETPLACE: { sectionHeader: 'Harga Pengadaan (COGS)', yieldCol: 'Susut %',        yieldMobile: 'Susut',       catalogLabel: 'Harga Pengadaan (COGS)',   portionUnit: 'unit',  ingCategory: 'RAW_MATERIAL' },
+  WHOLESALE:   { sectionHeader: 'Komoditas',              yieldCol: 'Penyusutan %',   yieldMobile: 'Penyusutan',  catalogLabel: 'Katalog Bahan',            portionUnit: 'porsi', ingCategory: 'RAW_MATERIAL' },
+};
+
+const CATEGORY_LABEL: Record<IngredientCategory, string> = {
+  RAW_MATERIAL: 'Bahan',
+  LABOR:        'Tenaga',
+  FIXED_COST:   'Tetap',
+};
 
 const emptyIngredient = (): IngredientRow => ({
   id: uid(), name: '', purchasePrice: '', purchaseVolume: '',
@@ -38,6 +59,7 @@ const emptyOp = (): OperationalRow => ({
 
 export function HPPCalculator({
   mode,
+  businessType,
   derivedIngredients,
   savedRawIngredients,
   onSaveRawIngredients,
@@ -46,6 +68,7 @@ export function HPPCalculator({
   recipeToLoad,
 }: {
   mode: Exclude<CalcMode, 'turunan'>;
+  businessType: BusinessType;
   derivedIngredients: DerivedIngredient[];
   savedRawIngredients: SavedRawIngredient[];
   onSaveRawIngredients: (items: SavedRawIngredient[]) => void;
@@ -58,7 +81,10 @@ export function HPPCalculator({
   const [batchSize, setBatchSize] = useState('50');
   const [fixedCost, setFixedCost] = useState('5000000');
   const [targetUnits, setTargetUnits] = useState('100');
-  const { targetPrice } = usePriceStore();
+  const { targetPrice, setTargetPrice, clearTargetPrice } = usePriceStore();
+  const portionUnit = businessType === 'WHOLESALE'
+    ? (WHOLESALE_UNIT_SET.has(ingredients[0]?.unit) ? ingredients[0].unit : 'kg')
+    : LABELS[businessType].portionUnit;
   const [showDerivedPicker, setShowDerivedPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const [showSaveForm, setShowSaveForm] = useState(false);
@@ -66,6 +92,39 @@ export function HPPCalculator({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [confirmRemoveIng, setConfirmRemoveIng] = useState<string | null>(null);
+
+  // Manual HPP mode state
+  const [manualMode, setManualMode] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualHpp, setManualHpp] = useState('');
+  const [manualSellPrice, setManualSellPrice] = useState('');
+  const [manualSaved, setManualSaved] = useState(false);
+
+  // SERVICE mode state
+  const [svcRows, setSvcRows] = useState<Array<{ id: string; name: string; hours: string; hourRate: string; equipCost: string }>>([
+    { id: uid(), name: '', hours: '', hourRate: '', equipCost: '' },
+  ]);
+  const addSvcRow = () => setSvcRows(r => [...r, { id: uid(), name: '', hours: '', hourRate: '', equipCost: '' }]);
+  const removeSvcRow = (id: string) => setSvcRows(r => r.filter(x => x.id !== id));
+  const updateSvc = (id: string, field: string, val: string) =>
+    setSvcRows(r => r.map(x => x.id === id ? { ...x, [field]: val } : x));
+
+  // MARKETPLACE mode state
+  const [mktBuyPrice, setMktBuyPrice] = useState('');
+  const [mktSellPrice, setMktSellPrice] = useState('');
+  const [mktAdminPct, setMktAdminPct] = useState('0');
+  const [mktFixedFee, setMktFixedFee] = useState('0');
+  const [mktAdCost, setMktAdCost] = useState('0');
+  const [mktShippingSubsidy, setMktShippingSubsidy] = useState('0');
+
+  useEffect(() => {
+    if (!manualMode) {
+      clearTargetPrice();
+      return;
+    }
+    const sp = parseNum(manualSellPrice);
+    if (sp > 0) setTargetPrice(sp);
+  }, [manualMode, manualSellPrice, setTargetPrice, clearTargetPrice]);
 
   useEffect(() => {
     if (!showDerivedPicker) return;
@@ -80,11 +139,40 @@ export function HPPCalculator({
 
   useEffect(() => {
     if (!recipeToLoad) return;
+    setManualMode(false);
     setIngredients(recipeToLoad.ingredients);
     setOps(recipeToLoad.ops);
     setBatchSize(recipeToLoad.batchSize);
     setFixedCost(recipeToLoad.fixedCost);
   }, [recipeToLoad]);
+
+  const prevBusinessTypeRef = useRef<BusinessType>(businessType);
+  useEffect(() => {
+    const prev = prevBusinessTypeRef.current;
+    prevBusinessTypeRef.current = businessType;
+    if (prev === businessType) return;
+    if (prev === 'SERVICE') {
+      setSvcRows([{ id: uid(), name: '', hours: '', hourRate: '', equipCost: '' }]);
+    } else if (prev === 'MARKETPLACE') {
+      setMktBuyPrice('');
+      setMktSellPrice('');
+      setMktAdminPct('0');
+      setMktFixedFee('0');
+      setMktAdCost('0');
+      setMktShippingSubsidy('0');
+    } else {
+      const defaultUnit: IngredientUnit = businessType === 'WHOLESALE' ? 'kg' : 'gr';
+      setIngredients([{ ...emptyIngredient(), unit: defaultUnit }]);
+    }
+  }, [businessType]);
+
+  // Normalize ingredient units when entering WHOLESALE (handles initial load + all transitions)
+  useEffect(() => {
+    if (businessType !== 'WHOLESALE') return;
+    setIngredients(rows =>
+      rows.map(r => WHOLESALE_UNIT_SET.has(r.unit) ? r : { ...r, unit: 'kg' as IngredientUnit })
+    );
+  }, [businessType]);
 
   const updateIng = (id: string, field: keyof IngredientRow, val: string) =>
     setIngredients(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
@@ -116,6 +204,7 @@ export function HPPCalculator({
   };
 
   const handleSaveToKatalog = () => {
+    const cat = LABELS[businessType].ingCategory;
     const items: SavedRawIngredient[] = ingredients
       .filter(r => r.name.trim() && parseNum(r.purchasePrice) > 0 && parseNum(r.purchaseVolume) > 0)
       .map(r => ({
@@ -123,6 +212,7 @@ export function HPPCalculator({
         purchasePrice: parseNum(r.purchasePrice),
         purchaseVolume: parseNum(r.purchaseVolume),
         unit: r.unit,
+        category: cat,
       }));
     if (items.length > 0) onSaveRawIngredients(items);
   };
@@ -173,6 +263,36 @@ export function HPPCalculator({
 
   const result = useMemo(() => {
     try {
+      // Manual HPP bypass — all complex form sections are hidden
+      if (manualMode) {
+        const hpp = parseNum(manualHpp);
+        if (hpp <= 0) return null;
+        const tiers = getPricingTiers(hpp);
+        return { hpp, tiers, bep: null, batch: null };
+      }
+
+      const opList: OperationalCost[] = ops
+        .filter(r => parseNum(r.price) > 0)
+        .map(r => ({
+          id: r.id, name: r.name,
+          price: parseNum(r.price),
+          usage: Math.min(1, parseNum(r.usage) / 100),
+        }));
+      const fc = parseNum(fixedCost);
+
+      // SERVICE: HPP = total labor + equipment per service item
+      if (businessType === 'SERVICE') {
+        const totalLabor = svcRows.reduce((sum, r) => {
+          return sum + parseNum(r.hours) * parseNum(r.hourRate) + parseNum(r.equipCost);
+        }, 0);
+        const totalOp = opList.reduce((sum, op) => sum + op.price * op.usage, 0);
+        const hpp = totalLabor + totalOp;
+        if (hpp <= 0) return null;
+        const tiers = getPricingTiers(hpp);
+        const bep = fc > 0 ? calculateBEP(fc, tiers[1].sellPrice, hpp) : null;
+        return { hpp, tiers, bep, batch: null };
+      }
+
       const ingList = ingredients
         .filter(r => parseNum(r.purchasePrice) > 0 && parseNum(r.purchaseVolume) > 0 && parseNum(r.usage) > 0)
         .map(r => ({
@@ -185,14 +305,23 @@ export function HPPCalculator({
           yieldFactor: Math.max(0.01, 1 - Math.min(0.99, parseNum(r.yieldFactor) / 100)),
         }));
 
-      const opList: OperationalCost[] = ops
-        .filter(r => parseNum(r.price) > 0)
-        .map(r => ({
-          id: r.id, name: r.name,
-          price: parseNum(r.price),
-          usage: Math.min(1, parseNum(r.usage) / 100),
-        }));
+      // MARKETPLACE: HPP = buy price + platform fee + ad cost + shipping subsidy
+      if (businessType === 'MARKETPLACE') {
+        const buyPrice = parseNum(mktBuyPrice);
+        const opTotal = opList.reduce((s, op) => s + op.price * op.usage, 0);
+        if (buyPrice <= 0 && opTotal <= 0) return null;
+        const estimatedSell = parseNum(mktSellPrice);
+        const adminFee = estimatedSell > 0
+          ? estimatedSell * (parseNum(mktAdminPct) / 100) + parseNum(mktFixedFee)
+          : parseNum(mktFixedFee);
+        const hpp = buyPrice + opTotal + adminFee + parseNum(mktAdCost) + parseNum(mktShippingSubsidy);
+        if (hpp <= 0) return null;
+        const tiers = getPricingTiers(hpp);
+        const bep = fc > 0 ? calculateBEP(fc, tiers[1].sellPrice, hpp) : null;
+        return { hpp, tiers, bep, batch: null };
+      }
 
+      // FNB / WHOLESALE: existing logic unchanged
       const output = mode === 'satuan' ? 1 : Math.max(1, parseNum(batchSize));
       const targetVol = Math.max(1, parseNum(targetUnits));
       if (ingList.length === 0 && opList.length === 0) return null;
@@ -201,7 +330,6 @@ export function HPPCalculator({
       if (hpp <= 0) return null;
 
       const tiers = getPricingTiers(hpp);
-      const fc = parseNum(fixedCost);
       const bep = fc > 0 ? calculateBEP(fc, tiers[1].sellPrice, hpp) : null;
       const batch = mode === 'batch' ? Math.max(1, parseNum(batchSize)) : null;
 
@@ -209,7 +337,16 @@ export function HPPCalculator({
     } catch {
       return null;
     }
-  }, [ingredients, ops, batchSize, fixedCost, mode, targetUnits]);
+  }, [ingredients, ops, batchSize, fixedCost, mode, targetUnits, businessType, svcRows, mktBuyPrice, mktSellPrice, mktAdminPct, mktFixedFee, mktAdCost, mktShippingSubsidy, manualMode, manualHpp]);
+
+  const filteredSuggestions = useMemo(() => {
+    const targetCat = LABELS[businessType].ingCategory;
+    return savedRawIngredients.filter(i => !i.category || i.category === targetCat);
+  }, [businessType, savedRawIngredients]);
+
+  const totalHours = businessType === 'SERVICE'
+    ? svcRows.reduce((s, r) => s + parseNum(r.hours), 0)
+    : 0;
 
   const effectiveSellPrice = targetPrice ?? result?.tiers[1]?.sellPrice ?? 0;
 
@@ -219,17 +356,182 @@ export function HPPCalculator({
     catch { return null; }
   }, [result, effectiveSellPrice, fixedCost]);
 
+  const handleSaveManual = () => {
+    const hpp = parseNum(manualHpp);
+    if (!manualName.trim() || hpp <= 0) {
+      toast.error('Isi nama produk dan HPP yang valid');
+      return;
+    }
+    onSaveRecipe({
+      name: manualName.trim(),
+      mode: 'satuan',
+      hpp,
+      ingredients: [],
+      ops: [],
+      batchSize: '1',
+      fixedCost: '0',
+    });
+    toast.success(`"${manualName.trim()}" disimpan ke katalog`);
+    setManualName('');
+    setManualHpp('');
+    setManualSellPrice('');
+    setManualSaved(true);
+    setTimeout(() => setManualSaved(false), 1500);
+  };
+
   return (
     <div className="space-y-6">
     <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:items-start">
       <div className="space-y-5">
 
-        {/* Bahan Baku */}
+        {/* Manual HPP toggle */}
+        <div className="flex items-center justify-between bg-[var(--surface)] rounded-2xl border border-[var(--border)] px-5 py-3">
+          <div>
+            <p className="text-sm font-semibold text-[var(--text)]">Input Manual</p>
+            <p className="text-[11px] text-[var(--text-3)]">Langsung isi HPP tanpa hitung bahan baku</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={manualMode}
+            onClick={() => setManualMode(v => !v)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent
+              transition-colors focus:outline-none
+              ${manualMode ? 'bg-[#27B18A]' : 'bg-[var(--border)]'}`}
+          >
+            <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow
+              transform transition-transform ${manualMode ? 'translate-x-5' : 'translate-x-0'}`} />
+          </button>
+        </div>
+
+        {/* Manual HPP form — shown when toggle is active */}
+        {manualMode && (
+          <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-[var(--text)] mb-1.5">Nama Produk</label>
+              <input
+                type="text"
+                value={manualName}
+                onChange={e => setManualName(e.target.value)}
+                placeholder="Contoh: Kopi Susu Spesial"
+                className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm
+                  focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A] text-[var(--text)]"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">HPP Manual</label>
+                <NumInput value={manualHpp} onChange={setManualHpp} placeholder="5000" prefix="Rp" />
+                <p className="text-[11px] text-[var(--text-4)] mt-1">Biaya produksi per unit</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
+                  Harga Jual
+                  <span className="ml-1.5 text-[11px] font-normal text-[var(--text-3)]">untuk preview margin</span>
+                </label>
+                <NumInput value={manualSellPrice} onChange={setManualSellPrice} placeholder="15000" prefix="Rp" />
+              </div>
+            </div>
+            {parseNum(manualHpp) > 0 && parseNum(manualSellPrice) > 0 && (
+              <div className="bg-[var(--bg)] rounded-xl px-4 py-3 flex items-center justify-between">
+                <span className="text-sm text-[var(--text-2)]">Gross Profit</span>
+                <span className={`text-sm font-bold ${parseNum(manualSellPrice) > parseNum(manualHpp) ? 'text-[#27B18A]' : 'text-red-500'}`}>
+                  {formatRp(parseNum(manualSellPrice) - parseNum(manualHpp))}
+                  <span className="ml-1.5 text-[11px] font-normal text-[var(--text-3)]">
+                    ({parseNum(manualHpp) > 0 ? Math.round((1 - parseNum(manualHpp) / parseNum(manualSellPrice)) * 100) : 0}% margin)
+                  </span>
+                </span>
+              </div>
+            )}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSaveManual}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#27B18A] text-white
+                  text-sm font-semibold rounded-xl hover:bg-[#0E927A] transition-colors"
+              >
+                <BookmarkPlus size={14} />
+                Simpan ke Katalog
+              </button>
+              {manualSaved && (
+                <span className="text-sm font-medium text-[#27B18A]">✓ Tersimpan ke katalog!</span>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* All input sections hidden in manual mode */}
+        {/* SERVICE: Biaya Jasa */}
+        {!manualMode && businessType === 'SERVICE' && (
+          <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
+            <SectionHeader icon={<Briefcase size={15} />} label="Biaya Jasa" />
+            <div className="hidden md:grid gap-2 mb-2 px-1"
+              style={{ gridTemplateColumns: '1fr 120px 120px 120px 36px' }}>
+              {['Deskripsi Pekerjaan', 'Jam Kerja', 'Upah/Jam (Rp)', 'Biaya Alat (Rp)', ''].map(h => (
+                <span key={h} className="text-[10px] font-bold text-[var(--text-4)] uppercase tracking-wider">{h}</span>
+              ))}
+            </div>
+            <div className="space-y-2.5">
+              {svcRows.map(row => (
+                <div key={row.id}>
+                  <div className="md:hidden bg-[var(--bg)] rounded-xl p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <TextInput value={row.name} onChange={v => updateSvc(row.id, 'name', v)}
+                        placeholder="Contoh: Cuci & Potong Rambut" className="flex-1" />
+                      <DeleteBtn onClick={() => removeSvcRow(row.id)} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <p className="text-[10px] text-[var(--text-4)] mb-1">Jam Kerja</p>
+                        <NumInput value={row.hours} onChange={v => updateSvc(row.id, 'hours', v)} placeholder="1" suffix="jam" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-[var(--text-4)] mb-1">Upah/Jam</p>
+                        <NumInput value={row.hourRate} onChange={v => updateSvc(row.id, 'hourRate', v)} placeholder="50000" prefix="Rp" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-[var(--text-4)] mb-1">Biaya Alat</p>
+                        <NumInput value={row.equipCost} onChange={v => updateSvc(row.id, 'equipCost', v)} placeholder="0" prefix="Rp" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="hidden md:grid gap-2 items-center"
+                    style={{ gridTemplateColumns: '1fr 120px 120px 120px 36px' }}>
+                    <TextInput value={row.name} onChange={v => updateSvc(row.id, 'name', v)}
+                      placeholder="Deskripsi pekerjaan" />
+                    <NumInput value={row.hours} onChange={v => updateSvc(row.id, 'hours', v)} placeholder="1" suffix="jam" />
+                    <NumInput value={row.hourRate} onChange={v => updateSvc(row.id, 'hourRate', v)} placeholder="50000" prefix="Rp" />
+                    <NumInput value={row.equipCost} onChange={v => updateSvc(row.id, 'equipCost', v)} placeholder="0" prefix="Rp" />
+                    <DeleteBtn onClick={() => removeSvcRow(row.id)} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <AddRowBtn onClick={addSvcRow} label="Tambah Item Jasa" />
+          </section>
+        )}
+
+        {/* MARKETPLACE: single buy price input */}
+        {!manualMode && businessType === 'MARKETPLACE' && (
+          <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
+            <SectionHeader icon={<Package size={15} />} label="Harga Beli Supplier" />
+            <div>
+              <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
+                Harga Beli / COGS per Unit
+                <span className="ml-1.5 text-[11px] font-normal text-[var(--text-3)]">biaya pengadaan satu unit</span>
+              </label>
+              <NumInput value={mktBuyPrice} onChange={setMktBuyPrice} placeholder="50000" prefix="Rp" />
+            </div>
+          </section>
+        )}
+
+        {/* Bahan Baku — hidden for SERVICE, MARKETPLACE, and in manual mode */}
+        {!manualMode && businessType !== 'SERVICE' && businessType !== 'MARKETPLACE' && (
         <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
-          <SectionHeader icon={<Package size={15} />} label="Bahan Baku" />
+          <SectionHeader icon={<Package size={15} />} label={LABELS[businessType].sectionHeader} />
           <div className="hidden md:grid gap-2 mb-2 px-1"
             style={{ gridTemplateColumns: '1fr 104px 76px 72px 76px 60px 36px' }}>
-            {['Nama Bahan', 'Harga Beli', 'Volume', 'Satuan', 'Pakai', 'Susut %', ''].map(h => (
+            {['Nama Bahan', 'Harga Beli', 'Volume', 'Satuan', 'Pakai', LABELS[businessType].yieldCol, ''].map(h => (
               <span key={h} className="text-[10px] font-bold text-[var(--text-4)] uppercase tracking-wider">{h}</span>
             ))}
           </div>
@@ -244,7 +546,7 @@ export function HPPCalculator({
                         value={row.name}
                         onChange={v => updateIng(row.id, 'name', v)}
                         onSelect={item => handleSelectSaved(row.id, item)}
-                        suggestions={savedRawIngredients}
+                        suggestions={filteredSuggestions}
                         placeholder="Nama bahan"
                         className="flex-1"
                       />
@@ -269,12 +571,18 @@ export function HPPCalculator({
                     <div>
                       <p className="text-[10px] text-[var(--text-4)] mb-1">Satuan</p>
                       <select value={row.unit}
-                        onChange={e => updateIng(row.id, 'unit', e.target.value as IngredientRow['unit'])}
+                        onChange={e => updateIng(row.id, 'unit', e.target.value as IngredientUnit)}
                         className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-2 py-2 text-sm
                           focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]">
-                        <option value="gr">gr</option>
-                        <option value="ml">ml</option>
-                        <option value="pcs">pcs</option>
+                        {businessType === 'WHOLESALE' ? WHOLESALE_UNITS.map(u => (
+                          <option key={u} value={u}>{u}</option>
+                        )) : (
+                          <>
+                            <option value="gr">gr</option>
+                            <option value="ml">ml</option>
+                            <option value="pcs">pcs</option>
+                          </>
+                        )}
                       </select>
                     </div>
                   </div>
@@ -284,7 +592,7 @@ export function HPPCalculator({
                       <NumInput value={row.usage} onChange={v => updateIng(row.id, 'usage', v)} placeholder="200" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-[var(--text-4)] mb-1">Susut</p>
+                      <p className="text-[10px] text-[var(--text-4)] mb-1">{LABELS[businessType].yieldMobile}</p>
                       <NumInput value={row.yieldFactor} onChange={v => updateIng(row.id, 'yieldFactor', v)}
                         placeholder="0" suffix="%" />
                     </div>
@@ -298,7 +606,7 @@ export function HPPCalculator({
                       value={row.name}
                       onChange={v => updateIng(row.id, 'name', v)}
                       onSelect={item => handleSelectSaved(row.id, item)}
-                      suggestions={savedRawIngredients}
+                      suggestions={filteredSuggestions}
                       placeholder="Nama bahan"
                       className="flex-1"
                     />
@@ -312,12 +620,18 @@ export function HPPCalculator({
                   <NumInput value={row.purchaseVolume} onChange={v => updateIng(row.id, 'purchaseVolume', v)}
                     placeholder="1000" />
                   <select value={row.unit}
-                    onChange={e => updateIng(row.id, 'unit', e.target.value as IngredientRow['unit'])}
+                    onChange={e => updateIng(row.id, 'unit', e.target.value as IngredientUnit)}
                     className="bg-[var(--bg)] border border-[var(--border)] rounded-xl px-2 py-2 text-sm
                       focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]">
-                    <option value="gr">gr</option>
-                    <option value="ml">ml</option>
-                    <option value="pcs">pcs</option>
+                    {businessType === 'WHOLESALE' ? WHOLESALE_UNITS.map(u => (
+                      <option key={u} value={u}>{u}</option>
+                    )) : (
+                      <>
+                        <option value="gr">gr</option>
+                        <option value="ml">ml</option>
+                        <option value="pcs">pcs</option>
+                      </>
+                    )}
                   </select>
                   <NumInput value={row.usage} onChange={v => updateIng(row.id, 'usage', v)} placeholder="200" />
                   <NumInput value={row.yieldFactor} onChange={v => updateIng(row.id, 'yieldFactor', v)}
@@ -372,13 +686,61 @@ export function HPPCalculator({
             </button>
           </div>
         </section>
+        )}
 
-        {/* Biaya Operasional */}
-        <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
+        {/* MARKETPLACE: Biaya Platform */}
+        {!manualMode && businessType === 'MARKETPLACE' && (
+          <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
+            <SectionHeader icon={<ShoppingBag size={15} />} label="Biaya Platform" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
+                  Estimasi Harga Jual
+                  <span className="ml-1.5 text-[11px] font-normal text-[var(--text-3)]">untuk hitung potongan admin</span>
+                </label>
+                <NumInput value={mktSellPrice} onChange={setMktSellPrice} placeholder="100000" prefix="Rp" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
+                  Potongan Admin
+                  <span className="ml-1.5 text-[11px] font-normal text-[var(--text-3)]">% dari harga jual</span>
+                </label>
+                <NumInput value={mktAdminPct} onChange={setMktAdminPct} placeholder="5" suffix="%" />
+                {parseNum(mktAdminPct) > 0 && !parseNum(mktSellPrice) && (
+                  <p className="text-[11px] text-amber-500 mt-1">Isi estimasi harga jual agar potongan % dihitung</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
+                  Biaya Tetap Platform
+                  <span className="ml-1.5 text-[11px] font-normal text-[var(--text-3)]">per transaksi</span>
+                </label>
+                <NumInput value={mktFixedFee} onChange={setMktFixedFee} placeholder="1000" prefix="Rp" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
+                  Biaya Iklan (Ads)
+                  <span className="ml-1.5 text-[11px] font-normal text-[var(--text-3)]">per unit terjual</span>
+                </label>
+                <NumInput value={mktAdCost} onChange={setMktAdCost} placeholder="0" prefix="Rp" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
+                  Subsidi Ongkir
+                  <span className="ml-1.5 text-[11px] font-normal text-[var(--text-3)]">biaya kirim ditanggung seller</span>
+                </label>
+                <NumInput value={mktShippingSubsidy} onChange={setMktShippingSubsidy} placeholder="0" prefix="Rp" />
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Biaya Operasional — hidden in manual mode */}
+        {!manualMode && <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
           <SectionHeader icon={<Zap size={15} />} label="Biaya Operasional" />
           <div className="hidden md:grid gap-2 mb-2 px-1"
             style={{ gridTemplateColumns: '1fr 148px 80px 36px' }}>
-            {['Nama Biaya', 'Biaya Bulanan', 'Porsi %', ''].map(h => (
+            {['Nama Biaya', 'Biaya Bulanan', 'Alokasi %', ''].map(h => (
               <span key={h} className="text-[10px] font-bold text-[var(--text-4)] uppercase tracking-wider">{h}</span>
             ))}
           </div>
@@ -398,7 +760,7 @@ export function HPPCalculator({
                         placeholder="500000" prefix="Rp" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-[var(--text-4)] mb-1">Porsi dibebankan</p>
+                      <p className="text-[10px] text-[var(--text-4)] mb-1">Alokasi</p>
                       <NumInput value={row.usage} onChange={v => updateOp(row.id, 'usage', v)}
                         placeholder="10" suffix="%" />
                     </div>
@@ -418,13 +780,13 @@ export function HPPCalculator({
             ))}
           </div>
           <AddRowBtn onClick={addOp} label="Tambah Biaya" />
-        </section>
+        </section>}
 
-        {/* Parameter */}
-        <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
+        {/* Parameter — hidden in manual mode */}
+        {!manualMode && <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
           <SectionHeader icon={<SlidersHorizontal size={15} />} label="Parameter Produksi" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {mode === 'batch' && (
+              {mode === 'batch' && (
               <div>
                 <label className="block text-sm font-medium text-[var(--text)] mb-1.5">Jumlah Produksi</label>
                 <div className="relative flex items-center">
@@ -436,9 +798,9 @@ export function HPPCalculator({
                     className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl
                       px-3 pr-14 py-2.5 text-sm text-right focus:outline-none
                       focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A] transition-colors" />
-                  <span className="absolute right-3 text-xs text-[var(--text-4)] select-none">cup</span>
+                  <span className="absolute right-3 text-xs text-[var(--text-4)] select-none">{portionUnit}</span>
                 </div>
-                <p className="text-[11px] text-[var(--text-4)] mt-1.5">Berapa cup dalam satu sesi produksi</p>
+                <p className="text-[11px] text-[var(--text-4)] mt-1.5">Berapa {portionUnit} dalam satu sesi produksi</p>
               </div>
             )}
             <div className={mode === 'satuan' ? 'sm:col-span-1' : ''}>
@@ -463,16 +825,16 @@ export function HPPCalculator({
                   className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl
                     px-3 pr-14 py-2.5 text-sm text-right focus:outline-none
                     focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A] transition-colors" />
-                <span className="absolute right-3 text-xs text-[var(--text-4)] select-none">porsi</span>
+                <span className="absolute right-3 text-xs text-[var(--text-4)] select-none">{portionUnit}</span>
               </div>
               <p className="text-[11px] text-[var(--text-4)] mt-1.5">Rencana penjualan per bulan</p>
             </div>
           </div>
-        </section>
+        </section>}
 
         {result !== null && (
           <div className="flex items-center gap-3">
-            {!showSaveForm && !saveSuccess && (
+            {!showSaveForm && !saveSuccess && businessType !== 'SERVICE' && !manualMode && (
               <button
                 type="button"
                 onClick={handleClickSave}
@@ -525,18 +887,30 @@ export function HPPCalculator({
       </div>
 
       <div className="mt-5 lg:mt-0 space-y-4">
-        <ResultsPanel result={result} fixedCost={parseNum(fixedCost)} targetUnits={parseNum(targetUnits)} />
+        <ResultsPanel result={result} fixedCost={parseNum(fixedCost)} targetUnits={parseNum(targetUnits)} businessType={businessType} totalHours={totalHours} unitName={portionUnit} />
         {savedRawIngredients.length > 0 && (
           <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)] block mb-3">
-              Katalog Bahan
-            </span>
+            <div className="flex items-center gap-1.5 mb-3">
+              <Tag size={11} className="text-[var(--text-4)]" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-4)]">
+                {LABELS[businessType].catalogLabel}
+              </span>
+            </div>
             <div className="space-y-1">
               {savedRawIngredients.map(item => (
                 <div key={item.name} className="flex items-center justify-between py-1.5
                   border-b border-[var(--border-subtle)] last:border-0">
                   <div>
-                    <p className="text-sm font-medium text-[var(--text)]">{item.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium text-[var(--text)]">{item.name}</p>
+                      {item.category && (
+                        <span className={`text-[9px] font-bold px-1 py-px rounded ${
+                          item.category === 'LABOR' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+                          item.category === 'FIXED_COST' ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' :
+                          'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        }`}>{CATEGORY_LABEL[item.category]}</span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-[var(--text-2)]">
                       {formatRp(item.purchasePrice)} · {item.purchaseVolume.toLocaleString('id-ID')} {item.unit}
                     </p>

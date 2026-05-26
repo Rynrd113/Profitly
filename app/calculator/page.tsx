@@ -6,7 +6,10 @@ import { Navbar } from '@/components/Navbar';
 import { AdminGuard } from '@/components/AdminGuard';
 import dynamic from 'next/dynamic';
 import { ModeSelectorCards, type CalcMode } from '@/components/ModeSelectorCards';
+import { BusinessTypeSelectorCards } from '@/components/BusinessTypeSelectorCards';
 import { HPPCalculator } from '@/components/HPPCalculator';
+import { useSettingsStore } from '@/store/settingsStore';
+import type { BusinessType } from '@/types/business';
 
 const TurunanCalculator = dynamic(
   () => import('@/components/TurunanCalculator').then(m => ({ default: m.TurunanCalculator })),
@@ -29,6 +32,19 @@ type ActiveMenu = 'kalkulator' | 'stok';
 export default function CalculatorPage() {
   const [activeMenu, setActiveMenu] = useState<ActiveMenu>('kalkulator');
   const [activeMode, setActiveMode] = useState<CalcMode>('satuan');
+
+  const { profile, setProfile } = useSettingsStore();
+  const [businessType, setBusinessType] = useState<BusinessType>(profile.businessType ?? 'FNB');
+
+  // Sync if store hydrates after mount (e.g. SSR mismatch)
+  useEffect(() => {
+    setBusinessType(profile.businessType ?? 'FNB');
+  }, [profile.businessType]);
+
+  const handleBusinessTypeChange = (type: BusinessType) => {
+    setBusinessType(type);
+    setProfile({ businessType: type });
+  };
 
   const { ingredients: derivedIngredients, save, remove } = useDerivedIngredients();
   const {
@@ -100,10 +116,13 @@ export default function CalculatorPage() {
 
         {activeMenu === 'kalkulator' && (
           <>
+            {/* Business type selector — persists to settings store live */}
+            <BusinessTypeSelectorCards value={businessType} onChange={handleBusinessTypeChange} />
             <ModeSelectorCards activeMode={activeMode} onChange={setActiveMode} />
             <div className={activeMode === 'turunan' ? 'hidden' : ''}>
               <HPPCalculator
                 mode={activeMode === 'batch' ? 'batch' : 'satuan'}
+                businessType={businessType}
                 derivedIngredients={derivedIngredients}
                 savedRawIngredients={savedRawIngredients}
                 onSaveRawIngredients={saveRawIngredients}

@@ -81,7 +81,7 @@ function buildReceiptHTML(record: SaleRecord, profile: BusinessProfile): string 
 </html>`;
 }
 
-export function printReceipt(record: SaleRecord, profile: BusinessProfile = { name: 'ProfitLy', tagline: '', address: '', phone: '', footer: 'Terima kasih atas kunjungan Anda!' }): void {
+export function printReceipt(record: SaleRecord, profile: BusinessProfile = { name: 'ProfitLy', tagline: '', address: '', phone: '', footer: 'Terima kasih atas kunjungan Anda!', businessType: 'FNB' }): void {
   const html = buildReceiptHTML(record, profile);
   const win = window.open('', '_blank', 'width=360,height=600');
   if (!win) return;

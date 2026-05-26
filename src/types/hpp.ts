@@ -1,9 +1,11 @@
+export type IngredientUnit = 'gr' | 'ml' | 'pcs' | 'kg' | 'ton' | 'kwintal' | 'sak' | 'bal';
+
 export interface Ingredient {
   id: string;
   name: string;
   purchasePrice: number;    // Harga beli total
   purchaseVolume: number;   // Isi/berat total (misal 1000)
-  unit: 'gr' | 'ml' | 'pcs';
+  unit: IngredientUnit;
   usage: number;            // Jumlah yang dipakai di resep
 }
 
@@ -37,7 +39,7 @@ export interface ProcessingCost {
 export interface DerivedIngredient {
   id: string;
   name: string;
-  unit: 'gr' | 'ml' | 'pcs';
+  unit: IngredientUnit;
   costPerUnit: number;
 }
 
@@ -45,7 +47,7 @@ export interface DerivedProductOutput {
   id: string;
   name: string;
   qty: number;
-  unit: 'gr' | 'ml' | 'pcs';
+  unit: IngredientUnit;
   sellPrice: number;
   hpp: number;
 }
@@ -56,11 +58,14 @@ export interface PriceHistoryEntry {
   recordedAt: string;
 }
 
+export type IngredientCategory = 'RAW_MATERIAL' | 'LABOR' | 'FIXED_COST';
+
 export interface SavedRawIngredient {
   name: string;           // primary key — upsert by name
   purchasePrice: number;
   purchaseVolume: number;
-  unit: 'gr' | 'ml' | 'pcs';
+  unit: IngredientUnit;
+  category?: IngredientCategory;
   currentStock?: number;
   minStock?: number;
   priceHistory?: PriceHistoryEntry[];
@@ -69,7 +74,7 @@ export interface SavedRawIngredient {
 export interface StockTransactionItem {
   ingredientName: string;
   delta: number;          // negative = deduct, positive = restock/adjustment
-  unit: 'gr' | 'ml' | 'pcs';
+  unit: IngredientUnit;
   balanceBefore: number;
   balanceAfter: number;
 }
@@ -132,7 +137,7 @@ export interface SavedRecipeIngredient {
   name: string;
   purchasePrice: string;
   purchaseVolume: string;
-  unit: 'gr' | 'ml' | 'pcs';
+  unit: IngredientUnit;
   usage: string;
   yieldFactor: string;
   isDerived?: boolean;

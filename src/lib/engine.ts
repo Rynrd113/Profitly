@@ -1,4 +1,5 @@
-import type { Ingredient, OperationalCost, PricingTier, ProcessingCost, DerivedProductOutput } from '@/types/hpp';
+import type { Ingredient, IngredientUnit, OperationalCost, PricingTier, ProcessingCost, DerivedProductOutput } from '@/types/hpp';
+import type { ServicePrice, MarketplaceFee } from '@/types/business';
 import { roundToThousand } from '@/lib/format';
 
 const safeDiv = (val: number) => Math.max(val, 1);
@@ -164,7 +165,7 @@ export function getBEPScenarios(
 interface DerivedHPPInput {
   ingredients: Array<{ ingredient: Ingredient; yieldFactor?: number }>;
   processingCosts: ProcessingCost[];
-  outputs: Array<{ id: string; name: string; qty: number; unit: 'gr' | 'ml' | 'pcs'; sellPrice: number }>;
+  outputs: Array<{ id: string; name: string; qty: number; unit: IngredientUnit; sellPrice: number }>;
 }
 
 export function calculateDerivedHPP(input: DerivedHPPInput): DerivedProductOutput[] {
@@ -191,4 +192,37 @@ export function calculateDerivedHPP(input: DerivedHPPInput): DerivedProductOutpu
     }
     return { ...o, hpp };
   });
+}
+
+// ─── Service & Marketplace ────────────────────────────────────────────────────
+
+/**
+ * Hitung Gross Profit untuk bisnis jasa (SERVICE).
+ * GrossProfit = Price - (LaborCost + EquipmentDepreciation)
+ */
+export function calculateServiceGrossProfit(
+  price: number,
+  service: ServicePrice,
+): number {
+  if (price < 0) throw new RangeError('price tidak boleh negatif');
+  if (service.hourRate < 0 || service.toolCost < 0) {
+    throw new RangeError('hourRate dan toolCost tidak boleh negatif');
+  }
+  return round(price - (service.hourRate + service.toolCost));
+}
+
+/**
+ * Hitung Gross Profit untuk bisnis marketplace (MARKETPLACE).
+ * GrossProfit = Price - (BuyPrice + PlatformFee + AdSpend)
+ * PlatformFee = Price * (adminPercent / 100) + fixedFee
+ */
+export function calculateMarketplaceGrossProfit(
+  price: number,
+  buyPrice: number,
+  fee: MarketplaceFee,
+): number {
+  if (price < 0) throw new RangeError('price tidak boleh negatif');
+  if (buyPrice < 0) throw new RangeError('buyPrice tidak boleh negatif');
+  const platformFee = round(price * (fee.adminPercent / 100) + fee.fixedFee);
+  return round(price - (buyPrice + platformFee + fee.adCost));
 }

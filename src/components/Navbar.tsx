@@ -5,21 +5,22 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ChefHat, BarChart3, FlaskConical, ShoppingCart, HeartPulse,
-  Settings, Menu, X, Sun, Moon, Lock, Unlock, ChevronDown, Package,
+  Settings, Menu, X, Sun, Moon, Lock, Unlock, ChevronDown, Package, Wallet,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAdminStore } from '@/store/adminStore';
 import { useAuthStore } from '@/store/authStore';
 
-type ActivePage = 'dashboard' | 'calculator' | 'pos' | 'financial-health' | 'settings' | 'inventory';
+type ActivePage = 'dashboard' | 'calculator' | 'pos' | 'financial-health' | 'finance' | 'settings' | 'inventory';
 
-const ADMIN_ROUTES = new Set(['/dashboard', '/calculator', '/financial-health', '/settings', '/inventory']);
+const ADMIN_ROUTES = new Set(['/dashboard', '/calculator', '/financial-health', '/finance', '/settings', '/inventory']);
 
 const adminLinks: { page: ActivePage; href: string; Icon: React.ElementType; label: string }[] = [
   { page: 'dashboard',        href: '/dashboard',        Icon: BarChart3,    label: 'Dashboard'  },
   { page: 'calculator',       href: '/calculator',       Icon: FlaskConical, label: 'Kalkulator' },
   { page: 'inventory',        href: '/inventory',        Icon: Package,      label: 'Inventori'  },
   { page: 'financial-health', href: '/financial-health', Icon: HeartPulse,   label: 'Keuangan'   },
+  { page: 'finance',          href: '/finance',          Icon: Wallet,       label: 'Arus Kas'   },
   { page: 'settings',         href: '/settings',         Icon: Settings,     label: 'Pengaturan' },
 ];
 
@@ -28,8 +29,8 @@ const allLinks = [
   ...adminLinks,
 ];
 
-const ADMIN_PAGES = new Set<ActivePage>(['dashboard', 'calculator', 'financial-health', 'settings', 'inventory']);
-const OWNER_ONLY_PAGES = new Set<ActivePage>(['financial-health', 'settings']);
+const ADMIN_PAGES = new Set<ActivePage>(['dashboard', 'calculator', 'financial-health', 'finance', 'settings', 'inventory']);
+const OWNER_ONLY_PAGES = new Set<ActivePage>(['financial-health', 'finance', 'settings']);
 
 export function Navbar({ active }: { active: ActivePage }) {
   const [open, setOpen] = useState(false);

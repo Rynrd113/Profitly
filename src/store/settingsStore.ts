@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { BusinessType } from '@/types/business';
 
 export interface BusinessProfile {
   name: string;
@@ -7,6 +8,8 @@ export interface BusinessProfile {
   address: string;
   phone: string;
   footer: string;
+  businessType: BusinessType;
+  wholesaleUnitName?: string;
 }
 
 interface SettingsState {
@@ -23,6 +26,7 @@ export const useSettingsStore = create<SettingsState>()(
         address: '',
         phone: '',
         footer: 'Terima kasih atas kunjungan Anda!',
+        businessType: 'FNB',
       },
       setProfile: (p) => set(s => ({ profile: { ...s.profile, ...p } })),
     }),

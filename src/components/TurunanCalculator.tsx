@@ -8,12 +8,12 @@ import {
 import { IngredientNameInput } from '@/components/IngredientNameInput';
 import { calculateDerivedHPP } from '@/lib/engine';
 import { uid, parseNum, formatRp } from '@/lib/format';
-import type { Ingredient, ProcessingCost, DerivedIngredient, SavedRawIngredient } from '@/types/hpp';
+import type { Ingredient, IngredientUnit, ProcessingCost, DerivedIngredient, SavedRawIngredient } from '@/types/hpp';
 
 interface TurunanIngredientRow {
   id: string; name: string;
   purchasePrice: string; purchaseVolume: string;
-  unit: 'gr' | 'ml' | 'pcs'; usage: string; yieldFactor: string;
+  unit: IngredientUnit; usage: string; yieldFactor: string;
 }
 
 interface ProcessingCostRow {
@@ -22,7 +22,7 @@ interface ProcessingCostRow {
 
 interface OutputProductRow {
   id: string; name: string; qty: string;
-  unit: 'gr' | 'ml' | 'pcs'; sellPrice: string;
+  unit: IngredientUnit; sellPrice: string;
 }
 
 const emptyIngredient = (): TurunanIngredientRow => ({
