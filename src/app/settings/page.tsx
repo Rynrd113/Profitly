@@ -37,7 +37,7 @@ export default function SettingsPage() {
     setBizFooter(profile.footer);
   }, [profile.name, profile.tagline, profile.address, profile.phone, profile.footer]);
 
-  const { switchToKasir, setPin } = useRole();
+  const { switchToKasir } = useRole();
   const [showModeSection, setShowModeSection] = useState(false);
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -641,7 +641,6 @@ export default function SettingsPage() {
                   onClick={() => {
                     if (newPin && newPin !== confirmPin) return;
                     if (newPin) {
-                      setPin(newPin);
                       useAuthStore.getState().changePin(newPin);
                     }
                     setPinSaved(true);
