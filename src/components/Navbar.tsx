@@ -82,6 +82,7 @@ export function Navbar({ active }: { active: ActivePage }) {
       setPinError(true);
       return;
     }
+    localStorage.setItem('profitly-role', 'owner');
     authenticate();
     const target = pendingRoute!;
     setPendingRoute(null);

@@ -23,6 +23,16 @@ export const useAuthStore = create<AuthState>()(
       changePin: (newPin) => set({ ownerPin: newPin }),
       verifyPin: (input) => input === get().ownerPin,
     }),
-    { name: 'profitly-auth-role' },
+    {
+      name: 'profitly-auth-role',
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        const legacyPin = localStorage.getItem('profitly-owner-pin');
+        if (legacyPin) {
+          state.ownerPin = legacyPin;
+          localStorage.removeItem('profitly-owner-pin');
+        }
+      },
+    },
   ),
 );
