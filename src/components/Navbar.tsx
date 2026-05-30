@@ -78,12 +78,10 @@ export function Navbar({ active }: { active: ActivePage }) {
   };
 
   const handleUnlock = () => {
-    const savedPin = localStorage.getItem('profitly-owner-pin');
-    if (savedPin && pin !== savedPin) {
+    if (!useAuthStore.getState().verifyPin(pin)) {
       setPinError(true);
       return;
     }
-    localStorage.setItem('profitly-role', 'owner');
     authenticate();
     const target = pendingRoute!;
     setPendingRoute(null);
@@ -259,47 +257,32 @@ export function Navbar({ active }: { active: ActivePage }) {
               Halaman ini hanya bisa diakses oleh Pengelola.
             </p>
 
-            {(() => {
-              const hasPin = !!localStorage.getItem('profitly-owner-pin');
-              return hasPin ? (
-                <div className="mb-4 text-left space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block">
-                    PIN Pengelola
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Masukkan PIN"
-                    value={pin}
-                    autoFocus
-                    onChange={e => { setPin(e.target.value); setPinError(false); }}
-                    onKeyDown={e => e.key === 'Enter' && handleUnlock()}
-                    className={`w-full bg-[var(--bg)] border rounded-xl px-3 py-2.5 text-sm
-                      focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]
-                      ${pinError ? 'border-[#DC2626]' : 'border-[var(--border)]'}`}
-                  />
-                  {pinError && <p className="text-xs text-[#DC2626]">PIN salah</p>}
-                  <button
-                    type="button"
-                    onClick={handleUnlock}
-                    className="w-full flex items-center justify-center gap-2 bg-[#27B18A] text-white
-                      py-2.5 rounded-xl font-semibold text-sm hover:bg-[#0E927A] transition-colors"
-                  >
-                    <Unlock size={14} />
-                    Buka Kunci
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleUnlock}
-                  className="w-full flex items-center justify-center gap-2 bg-[#27B18A] text-white
-                    py-2.5 rounded-xl font-semibold text-sm hover:bg-[#0E927A] transition-colors mb-3"
-                >
-                  <Unlock size={14} />
-                  Masuk sebagai Pengelola
-                </button>
-              );
-            })()}
+            <div className="mb-4 text-left space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-4)] block">
+                PIN Pengelola
+              </label>
+              <input
+                type="password"
+                placeholder="Masukkan PIN"
+                value={pin}
+                autoFocus
+                onChange={e => { setPin(e.target.value); setPinError(false); }}
+                onKeyDown={e => e.key === 'Enter' && handleUnlock()}
+                className={`w-full bg-[var(--bg)] border rounded-xl px-3 py-2.5 text-sm
+                  focus:outline-none focus:ring-2 focus:ring-[#27B18A]/20 focus:border-[#27B18A]
+                  ${pinError ? 'border-[#DC2626]' : 'border-[var(--border)]'}`}
+              />
+              {pinError && <p className="text-xs text-[#DC2626]">PIN salah</p>}
+              <button
+                type="button"
+                onClick={handleUnlock}
+                className="w-full flex items-center justify-center gap-2 bg-[#27B18A] text-white
+                  py-2.5 rounded-xl font-semibold text-sm hover:bg-[#0E927A] transition-colors"
+              >
+                <Unlock size={14} />
+                Buka Kunci
+              </button>
+            </div>
 
             <button
               type="button"
