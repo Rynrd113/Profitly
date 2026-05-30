@@ -6,6 +6,7 @@ import {
   Receipt,
   X,
   Archive,
+  Users,
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { useSavedRecipes } from '@/hooks/useSavedRecipes';
@@ -23,7 +24,7 @@ import { printReceipt } from '@/lib/printer';
 import { sendReceipt } from '@/lib/whatsapp';
 import { useSettingsStore } from '@/store/settingsStore';
 import { toast } from 'sonner';
-import type { SaleRecord, StockTransactionItem } from '@/types/hpp';
+import type { Customer, SaleRecord, StockTransactionItem } from '@/types/hpp';
 import { SuccessScreen } from '@/features/pos/components/SuccessScreen';
 import { OrderPanel } from '@/features/pos/components/OrderPanel';
 import { CustomerSelector } from '@/features/pos/components/CustomerSelector';
@@ -58,7 +59,7 @@ export default function POSPage() {
   const { userRole } = useAuthStore();
   const { profile: businessProfile } = useSettingsStore();
   const [view, setView] = useState<ViewTab>('pos');
-  const [selectedCustomer, setSelectedCustomer] = useState<ReturnType<typeof useCustomers>['customers'][number] | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const [cart, setCart] = useState<Cart>({});
   const [tier, setTier] = useState<TierKey>('standard');
@@ -269,7 +270,7 @@ export default function POSPage() {
         <div className="flex items-center gap-2 mb-5 flex-wrap">
           {([
             { key: 'pos',          icon: <Receipt size={13} />,  label: 'Kasir'       },
-            { key: 'pelanggan',    icon: <></>,                  label: 'Pelanggan'   },
+            { key: 'pelanggan',    icon: <Users size={13} />,    label: 'Pelanggan'   },
             { key: 'tutup-shift',  icon: <Archive size={13} />,  label: 'Tutup Shift' },
           ] as { key: ViewTab; icon: React.ReactNode; label: string }[]).map(({ key, icon, label }) => (
             <button
