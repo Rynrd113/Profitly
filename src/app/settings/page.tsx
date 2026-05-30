@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Navbar } from '@/components/Navbar';
 import { AdminGuard } from '@/components/AdminGuard';
 import { useRole } from '@/hooks/useRole';
+import { useAuthStore } from '@/store/authStore';
 import { exportBackup, importBackup } from '@/lib/backup';
 import { exportSalesCSV, exportInventoryCSV, parseInventoryCSV } from '@/lib/dataExchange';
 import { useSalesRecords } from '@/hooks/useSalesRecords';
@@ -639,7 +640,10 @@ export default function SettingsPage() {
                   disabled={!!(newPin && newPin !== confirmPin)}
                   onClick={() => {
                     if (newPin && newPin !== confirmPin) return;
-                    if (newPin) setPin(newPin);
+                    if (newPin) {
+                      setPin(newPin);
+                      useAuthStore.getState().changePin(newPin);
+                    }
                     setPinSaved(true);
                     setTimeout(() => {
                       switchToKasir();

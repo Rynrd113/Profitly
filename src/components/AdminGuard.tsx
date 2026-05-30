@@ -10,8 +10,8 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const role = localStorage.getItem('profitly-role');
-    if (role === 'owner') {
-      authenticate();
+    if (isAuthenticated || role === 'owner') {
+      if (!isAuthenticated) authenticate();
     } else {
       router.push('/pos');
     }
